@@ -26,6 +26,9 @@ class StudentsLandmarks(Alignment):
         self.model = None
         self.device = None
         self.backbone = None
+        self.indices = None
+        self.width = 256
+        self.height = 256
 
     def parse_options(self, params):
         unknown = super().parse_options(params)
@@ -49,6 +52,12 @@ class StudentsLandmarks(Alignment):
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
+        if self.database in ['300w_public', '300w_private', '300wlp']:
+            self.indices = [101, 102, 103, 104, 105, 106, 107, 108, 24, 110, 111, 112, 113, 114, 115, 116, 117, 1, 119, 2, 121, 3, 4, 124, 5, 126, 6, 128, 129, 130, 17, 16, 133, 134, 135, 18, 7, 138, 139, 8, 141, 142, 11, 144, 145, 12, 147, 148, 20, 150, 151, 22, 153, 154, 21, 156, 157, 23, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168]
+        elif self.database in 'wflw':
+            self.indices = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 24, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 1, 134, 2, 136, 3, 138, 139, 140, 141, 4, 143, 5, 145, 6, 147, 148, 149, 150, 151, 152, 153, 17, 16, 156, 157, 158, 18, 7, 161, 9, 163, 8, 165, 10, 167, 11, 169, 13, 171, 12, 173, 14, 175, 20, 177, 178, 22, 180, 181, 21, 183, 184, 23, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197]
+        else:
+            raise ValueError('Database is not implemented')
 
     def train(self, anns_train, anns_valid):
         print('Training')
@@ -75,8 +84,7 @@ class StudentsLandmarks(Alignment):
         datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()
-        indices = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 24, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 1, 134, 2, 136, 3, 138, 139, 140, 141, 4, 143, 5, 145, 6, 147, 148, 149, 150, 151, 152, 153, 17, 16, 156, 157, 158, 18, 7, 161, 9, 163, 8, 165, 10, 167, 11, 169, 13, 171, 12, 173, 14, 175, 20, 177, 178, 22, 180, 181, 21, 183, 184, 23, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197]
-        dataset = MyDataset([pred], image_size=(256, 256))
+        dataset = MyDataset([pred], image_size=(self.width, self.height))
         dl_test = DataLoader(dataset, batch_size=self.batch_size)
         with torch.no_grad():
             for index, batch in enumerate(dl_test):
@@ -92,6 +100,6 @@ class StudentsLandmarks(Alignment):
                 landmarks = (landmarks - bbox_res[0:2]) / bbox_res[2:4]
                 landmarks = (landmarks * bbox[2:4]) + bbox[0:2]
                 for idx, pt in enumerate(landmarks):
-                    label = indices[idx]
+                    label = self.indices[idx]
                     lp = list(parts.keys())[next((ids for ids, xs in enumerate(parts.values()) for x in xs if x == label), None)]
                     obj_pred.add_landmark(GenericLandmark(label, lp, pt.numpy().tolist(), True), lps[type(lp)])

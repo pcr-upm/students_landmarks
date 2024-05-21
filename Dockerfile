@@ -14,11 +14,11 @@ RUN git clone git@github.com:pcr-upm/students_landmarks.git images_framework/ali
 ADD data /images_framework/alignment/students_landmarks/data
 
 # Copy the repository from the previous image
-FROM nvcr.io/nvidia/cuda:11.2.2-cudnn8-devel-ubuntu20.04
+FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
 ENV LANG=C.UTF-8
 ENV TZ=Europe/Madrid
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN apt-get -y update && apt-get install -y build-essential wget cmake libgl1-mesa-glx libsm6 libxext6 libglib2.0-0
+RUN apt-get -y update && apt-get install -y build-essential wget cmake libgl1-mesa-glx libsm6 libxext6 libglib2.0-dev
 RUN mkdir /home/username
 WORKDIR /home/username
 COPY --from=intermediate /images_framework /home/username/images_framework
