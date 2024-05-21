@@ -9,7 +9,7 @@ import numpy as np
 from enum import Enum
 from torch.utils.data import DataLoader
 from images_framework.src.alignment import Alignment
-from images_framework.alignment.students_landmarks.src.dataloader import MyDataset
+from images_framework.alignment.students_landmarks.src.dataloader import MyDataset, Mode
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
 
@@ -66,10 +66,11 @@ class StudentsLandmarks(Alignment):
         from pytorch_lightning import loggers as pl_loggers
         from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
         # Prepare dataloaders
-        dataset_train = MyDataset(anns_train, image_size=(self.width, self.height))
-        dataset_valid = MyDataset(anns_valid, image_size=(self.width, self.height))
-        dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True)
-        dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True)
+        dataset_train = MyDataset(anns_train, self.database, self.indices, (self.width, self.height), Mode.TRAIN)
+        dataset_valid = MyDataset(anns_valid, self.database, self.indices, (self.width, self.height), Mode.VALID)
+        drop_last = (len(dataset_train) % self.batch_size) == 1  # discard a last iteration with a single sample
+        dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=drop_last)
+        dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         # Train the model
         print('Train model')
         model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
@@ -96,8 +97,6 @@ class StudentsLandmarks(Alignment):
             print('Loading model from {}'.format(model_path))
             if self.backbone == 'SHG':
                 self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=114-val_loss=0.00019.ckpt'))
-            else:
-                raise ValueError('Backbone is not implemented')
             self.model.to(self.device)
             self.model.eval()
 
@@ -109,8 +108,9 @@ class StudentsLandmarks(Alignment):
         datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()
-        dataset_test = MyDataset([pred], image_size=(self.width, self.height))
-        dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True)
+        # Prepare dataloader
+        dataset_test = MyDataset([pred], self.database, self.indices, (self.width, self.height), Mode.TEST)
+        dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         with torch.no_grad():
             for index, batch in enumerate(dl_test):
                 # Generate prediction
@@ -122,8 +122,8 @@ class StudentsLandmarks(Alignment):
                 bbox_res = batch['bbox_res'][0]
                 bbox = batch['bbox'][0]
                 landmarks = landmarks / 0.5
-                landmarks = (landmarks - bbox_res[0:2]) / bbox_res[2:4]
-                landmarks = (landmarks * bbox[2:4]) + bbox[0:2]
+                landmarks = (landmarks-bbox_res[0:2]) / bbox_res[2:4]
+                landmarks = (landmarks*bbox[2:4]) + bbox[0:2]
                 for idx, pt in enumerate(landmarks):
                     label = self.indices[idx]
                     lp = list(parts.keys())[next((ids for ids, xs in enumerate(parts.values()) for x in xs if x == label), None)]
