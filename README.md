@@ -3,20 +3,22 @@
 #### Requisites
 - images_framework https://github.com/pcr-upm/images_framework
 - scipy
-- tensorflow[and-cuda]
-- keras
-- nvidia-tensorrt
+- torch
+- pytorch-lightning
+- torchvision
+- torch-summary
+- tensorboard
 
 #### Installation
 This repository must be located inside the following directory:
 ```
 images_framework
     └── alignment
-        └── pami20_reconstruction
+        └── students_landmarks
 ```
 #### Usage
 ```
-usage: pami20_reconstruction_test.py [-h] [--input-data INPUT_DATA] [--show-viewer] [--save-image]
+usage: students_landmarks_test.py [-h] [--input-data INPUT_DATA] [--show-viewer] [--save-image]
 ```
 
 * Use the --input-data option to set an image, directory, camera or video file as input.
@@ -30,10 +32,18 @@ usage: Alignment --database DATABASE
 
 * Use the --database option to select the database model.
 ```
-usage: Pami20Reconstruction [--gpu GPU]
+usage: StudentsLandmarks [--gpu GPU] --backbone {SHG} [--batch-size BATCH_SIZE] [--epochs EPOCHS] [--patience PATIENCE]
 ```
 
 * Use the --gpu option to set the GPU identifier (negative value indicates CPU mode).
+
+* Use the --backbone option to set the backbone model.
+
+* Use the --batch-size option to set the number of images in each mini-batch.
+
+* Use the --epochs option to set the number of sweeps over the dataset to train.
+
+* Use the --patience option to set number of epochs with no improvement after which training will be stopped.
 ```
-> python images_framework/alignment/pami20_reconstruction/test/pami20_reconstruction_test.py --input-data images_framework/alignment/pami20_reconstruction/test/example.tif --database aflw --gpu 0 --save-image
+> python images_framework/alignment/students_landmarks/test/students_landmarks_test.py --input-data images_framework/alignment/students_landmarks/test/example.tif --database wflw --gpu 0 --backbone SHG --save-image
 ```

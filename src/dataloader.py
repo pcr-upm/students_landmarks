@@ -104,6 +104,7 @@ class MyDataset(Dataset):
                     self.targets.append(obj_ann.landmarks)
 
     def __len__(self):
+        # Returns the length of the dataset
         return len(self.filepaths)
 
     def __getitem__(self, sample_idx):
