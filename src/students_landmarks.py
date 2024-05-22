@@ -40,11 +40,11 @@ class StudentsLandmarks(Alignment):
                             help='GPU ID (negative value indicates CPU).')
         parser.add_argument('--backbone', dest='backbone', required=True, choices=[x.value for x in Backbone],
                             help='Select backbone model.')
-        parser.add_argument('--batch-size', dest='batch_size', type=int, default=16,
+        parser.add_argument('--batch-size', dest='batch_size', type=int, default=8,
                             help='Number of images in each mini-batch.')
-        parser.add_argument('--epochs', dest='epochs', type=int, default=100000,
+        parser.add_argument('--epochs', dest='epochs', type=int, default=200,
                             help='Number of sweeps over the dataset to train.')
-        parser.add_argument('--patience', dest='patience', type=int, default=40,
+        parser.add_argument('--patience', dest='patience', type=int, default=10,
                             help='Number of epochs with no improvement after which training will be stopped.')
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
@@ -74,11 +74,12 @@ class StudentsLandmarks(Alignment):
         # Train the model
         print('Train model')
         model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
+        ckpt_path = os.path.join(model_path+'ckpt/', 'last.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/')]
         checkpoint_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
         trainer = pl.Trainer(logger=loggers, accelerator='auto', devices='auto', enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stopping])
-        trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=os.path.join(model_path+'ckpt/', 'last.ckpt'))
+        trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
         import torchsummary
@@ -87,7 +88,7 @@ class StudentsLandmarks(Alignment):
         # Set up the neural network to train
         print('Load model')
         if self.backbone == 'SHG':
-            self.model = LitSHG(num_modules=1, num_landmarks=len(self.indices)-1, batch_size=self.batch_size)
+            self.model = LitSHG(num_modules=1, num_landmarks=len(self.indices)-1, batch_size=self.batch_size, lr=0.0001, weight_decay=0)
         else:
             raise ValueError('Backbone is not implemented')
         torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')

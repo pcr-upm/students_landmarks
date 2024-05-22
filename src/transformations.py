@@ -59,23 +59,24 @@ class GeometryBaseAug:
     def map_affine_transformation(self, sample, affine_transf, new_size=None):
         sample['img'] = self._image_affine_trans(sample['img'], affine_transf, new_size)
         sample['bbox_res'] = self._bbox_affine_trans(sample['bbox'], affine_transf)
-        # sample['landmarks'] = self._landmarks_affine_trans(sample['landmarks'], affine_transf)
+        if sample['landmarks'].size != 0:
+            sample['landmarks'] = self._landmarks_affine_trans(sample['landmarks'], affine_transf)
         # if 'lnd_covar' in sample.keys():
         #     sample['lnd_covar'] = self._covariance_affine_trans(sample['lnd_covar'], affine_transf)
         return sample
 
-    def clean_outbbox_landmarks(self, shape, landmarks, mask):
-        filter_x1 = landmarks[:, 0] >= shape[0]
-        filter_x2 = landmarks[:, 0] < (shape[0] + shape[2])
-        filter_x = np.logical_and(filter_x1,filter_x2)
-        filter_y1 = landmarks[:, 1] >= shape[1]
-        filter_y2 = landmarks[:, 1] < (shape[1] + shape[3])
-        filter_y = np.logical_and(filter_y1, filter_y2)
-        filter_bbox = np.logical_and(filter_x, filter_y)
-        new_mask = mask*filter_bbox
-        new_landmarks = (landmarks.T * new_mask).T
-        new_landmarks = new_landmarks.astype(int).astype(float)
-        return new_mask, new_landmarks
+    # def clean_outbbox_landmarks(self, shape, landmarks, mask):
+    #     filter_x1 = landmarks[:, 0] >= shape[0]
+    #     filter_x2 = landmarks[:, 0] < (shape[0] + shape[2])
+    #     filter_x = np.logical_and(filter_x1,filter_x2)
+    #     filter_y1 = landmarks[:, 1] >= shape[1]
+    #     filter_y2 = landmarks[:, 1] < (shape[1] + shape[3])
+    #     filter_y = np.logical_and(filter_y1, filter_y2)
+    #     filter_bbox = np.logical_and(filter_x, filter_y)
+    #     new_mask = mask*filter_bbox
+    #     new_landmarks = (landmarks.T * new_mask).T
+    #     new_landmarks = new_landmarks.astype(int).astype(float)
+    #     return new_mask, new_landmarks
 
     def _image_affine_trans(self, image, affine_transf, new_size=None):
         def get_inverse_transf(affine_transf):
@@ -114,14 +115,14 @@ class GeometryBaseAug:
         new_landmarks = affine_transf.dot(homog_landmarks.T).T
         return new_landmarks
 
-    def _covariance_affine_trans(self, covar, affine_transf):
-        import torch
-        L, _, _ = covar.shape
-        covar_tensor = torch.tensor(covar)
-        RSmatrix = torch.tensor(affine_transf[:2, :2]).repeat(L, 1, 1)
-        covar_out = torch.matmul(covar_tensor, RSmatrix.transpose(-1, -2))
-        covar_out = torch.matmul(RSmatrix, covar_out)
-        return covar_out.numpy()
+    # def _covariance_affine_trans(self, covar, affine_transf):
+    #     import torch
+    #     L, _, _ = covar.shape
+    #     covar_tensor = torch.tensor(covar)
+    #     RSmatrix = torch.tensor(affine_transf[:2, :2]).repeat(L, 1, 1)
+    #     covar_out = torch.matmul(covar_tensor, RSmatrix.transpose(-1, -2))
+    #     covar_out = torch.matmul(RSmatrix, covar_out)
+    #     return covar_out.numpy()
 
 
 class RSTAug(GeometryBaseAug):
@@ -156,12 +157,12 @@ class RSTAug(GeometryBaseAug):
 
 
 class TargetCropAug(GeometryBaseAug):
-    def __init__(self, img_new_size=256, map_new_size=128, target_dist=1.6):
+    def __init__(self, img_new_size=(256, 256), map_new_size=(128, 128), target_dist=1.6):
         self.target_dist = target_dist
         self.new_size_x, self.new_size_y = self._convert_shapes(img_new_size)
         self.map_size_x, self.map_size_y = self._convert_shapes(map_new_size)
         self.img2map_scale = False
-        # Mismatch btween img shape and featuremap shape
+        # Mismatch between img shape and feature map shape
         if self.map_size_x != self.new_size_x or self.map_size_y != self.new_size_y:
             self.img2map_scale = True
             self.map_scale_x = self.map_size_x / self.new_size_x
@@ -181,19 +182,15 @@ class TargetCropAug(GeometryBaseAug):
 
     def __call__(self, sample):
         x, y, w, h = sample['bbox']
-        # we enlarge the area taken around the bounding box
-        # it is neccesary to change the botton left point of the bounding box
-        # according to the previous enlargement. Note this will NOT be the new
-        # bounding box!
-        # We return square images, which is neccesary since
-        # all the images must have the same size in order to form batches
+        # We enlarge the area taken around the bounding box it is necessary to change the bottom left point of the
+        # bounding box according to the previous enlargement. Note this will NOT be the new bounding box!
+        # Return square images, which is necessary since all the images must have the same size in order to form batches
         side = max(w, h) * self.target_dist
         x -= (side - w) / 2
         y -= (side - h) / 2
         # center of the enlarged bounding box
         x0, y0 = x + side/2, y + side/2
-        # homothety factor, chosen so the new horizontal dimension will
-        # coincide with new_size
+        # homothety factor, chosen so the new horizontal dimension will coincide with new_size
         mu_x = self.new_size_x / side
         mu_y = self.new_size_y / side
         # new_w, new_h = new_size, int(h * mu)
@@ -202,7 +199,7 @@ class TargetCropAug(GeometryBaseAug):
         new_x0, new_y0 = new_w / 2, new_h / 2
         # dilatation + translation
         affine_transf = np.array([[mu_x, 0, new_x0 - mu_x * x0], [0, mu_y, new_y0 - mu_y * y0]])
-        sample = self.map_affine_transformation(sample, affine_transf,(new_w, new_h))
+        sample = self.map_affine_transformation(sample, affine_transf, (new_w, new_h))
         # img_shape = np.array([0, 0, self.new_size_x, self.new_size_y])
         # sample['landmarks_float'] = sample['landmarks']
         # sample['mask_ldm_float'] = sample['mask_ldm']
@@ -324,7 +321,7 @@ class BlurAug:
 
 
 class Heatmaps:
-    def __init__(self, num_maps, map_size, sigma, stride=1, norm=True):
+    def __init__(self, num_maps, map_size=(128, 128), sigma=1.5, stride=1, norm=False):
         self.num_maps = num_maps
         self.sigma = sigma
         self.double_sigma_pw2 = 2*sigma*sigma
@@ -338,8 +335,8 @@ class Heatmaps:
             self.width = map_size
             self.height = map_size
         grid_x = np.arange(self.width) * stride + stride / 2 - 0.5
-        self.grid_x = np.repeat(grid_x.reshape(1, self.width), self.num_maps, axis=0)
         grid_y = np.arange(self.height) * stride + stride / 2 - 0.5
+        self.grid_x = np.repeat(grid_x.reshape(1, self.width), self.num_maps, axis=0)
         self.grid_y = np.repeat(grid_y.reshape(1, self.height), self.num_maps, axis=0)
 
     def __call__(self, sample):
@@ -351,5 +348,5 @@ class Heatmaps:
         heatmaps = np.matmul(exp_y.reshape(self.num_maps, self.height, 1), exp_x.reshape(self.num_maps, 1, self.width))
         if self.norm:
             heatmaps = heatmaps/self.doublepi_sigma_pw2
-        sample['heatmap2D'] = heatmaps
+        sample['heatmaps'] = heatmaps
         return sample
