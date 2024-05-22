@@ -96,7 +96,7 @@ class StudentsLandmarks(Alignment):
             model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone == 'SHG':
-                self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=114-val_loss=0.00019.ckpt'))
+                self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=127-val_loss=0.00014.ckpt'))
             self.model.to(self.device)
             self.model.eval()
 
