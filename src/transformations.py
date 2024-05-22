@@ -8,12 +8,12 @@ import numpy as np
 from PIL import Image
 
 
-class ToOpencv:
+class ImgPermute:
     def __call__(self, sample):
-        # Convert in a numpy array and change to GBR
-        image = np.array(sample['img'])
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        sample['img'] = image
+        # Convert in a numpy array and change to BGR
+        image = cv2.cvtColor(np.array(sample['img']), cv2.COLOR_RGB2BGR)
+        # Converts a numpy image in H x W x C format to C x W x H format and changes the range to [0, 1]
+        sample['img'] = image.transpose(2, 0, 1) / 255.0
         return sample
 
 
@@ -21,7 +21,7 @@ class HorizontalFlipAug:
     def __init__(self, ldm_flip_order, prob=0.5):
         self.prob = prob
         self.ldm_flip_order = ldm_flip_order
-        self.covar_flip_sign = np.array([[1., -1.], [-1., 1.]])
+        # self.covar_flip_sign = np.array([[1., -1.], [-1., 1.]])
 
     def __call__(self, sample):
         import random

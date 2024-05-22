@@ -115,8 +115,7 @@ class StudentsLandmarks(Alignment):
         with torch.no_grad():
             for index, batch in enumerate(dl_test):
                 # Generate prediction
-                input = batch['img'].float().permute(0, 3, 1, 2).to(self.device) / 255
-                output = self.model(input)
+                output = self.model(batch['img'].float().to(self.device))
                 landmarks = get_landmarks_local_softmax(output, temperature=10, window=5, device=self.device).squeeze().cpu()
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
