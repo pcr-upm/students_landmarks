@@ -9,7 +9,7 @@ from enum import Enum
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-from images_framework.alignment.students_landmarks.src.transformations import HorizontalFlipAug, RSTAug, OcclusionAug, LightingAug, BlurAug, TargetCropAug, ImgPermute, Heatmaps
+from images_framework.alignment.students_landmarks.src.transformations import CropBbox, Occlusion, Illumination, Blur, ImgPermute, Heatmaps
 
 
 class Mode(Enum):
@@ -52,10 +52,10 @@ class MyDataset(Dataset):
         sample = {'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'landmarks': self.landmarks[idx]}
         # Composes several transforms together
         if self.mode == Mode.TRAIN:
-            ops = [HorizontalFlipAug(self.database), RSTAug(), OcclusionAug(), LightingAug(), BlurAug(), TargetCropAug(self.image_size), ImgPermute(), Heatmaps(len(self.indices))]
+            ops = [Occlusion(), Illumination(), Blur(), CropBbox(self.image_size), ImgPermute(), Heatmaps(len(self.indices))]
         elif self.mode == Mode.VALID:
-            ops = [TargetCropAug(self.image_size), ImgPermute(), Heatmaps(len(self.indices))]
+            ops = [CropBbox(self.image_size), ImgPermute(), Heatmaps(len(self.indices))]
         else:
-            ops = [TargetCropAug(self.image_size), ImgPermute()]
+            ops = [CropBbox(self.image_size), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
         return sample

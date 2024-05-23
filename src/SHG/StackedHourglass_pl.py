@@ -26,7 +26,7 @@ class LitSHG(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         inputs = batch['img'].float()
-        targets = batch['heatmap'].float()
+        targets = batch['heatmaps'].float()
         outputs = self.model(inputs)[0]
         loss = self.mse_loss(outputs, targets)
         self.log('train_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)

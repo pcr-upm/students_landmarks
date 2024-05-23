@@ -9,6 +9,7 @@ import numpy as np
 from enum import Enum
 from torch.utils.data import DataLoader
 from images_framework.src.alignment import Alignment
+from images_framework.alignment.students_landmarks.src.pcrlogger import PCRLogger
 from images_framework.alignment.students_landmarks.src.dataloader import MyDataset, Mode
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
@@ -75,7 +76,7 @@ class StudentsLandmarks(Alignment):
         print('Train model')
         model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
         ckpt_path = os.path.join(model_path+'ckpt/', 'last.ckpt')
-        loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/')]
+        loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/'), PCRLogger()]
         checkpoint_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
         trainer = pl.Trainer(logger=loggers, accelerator='auto', devices='auto', enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stopping])
@@ -97,7 +98,7 @@ class StudentsLandmarks(Alignment):
             model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone == 'SHG':
-                self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=127-val_loss=0.00014.ckpt'))
+                self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
             self.model.to(self.device)
             self.model.eval()
 
