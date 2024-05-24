@@ -8,7 +8,7 @@ import numpy as np
 from enum import Enum
 from torch.utils.data import Dataset
 from torchvision import transforms
-from images_framework.alignment.students_headpose.src.transformations import Illumination, CropBbox, ImgPermute
+from images_framework.alignment.students_landmarks.src.transformations import Illumination, CropBbox, ImgPermute
 
 
 class Mode(Enum):

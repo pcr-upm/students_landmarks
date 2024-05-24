@@ -54,8 +54,9 @@ class CropBbox:
         face_translated = cv2.warpAffine(sample['img'], T, (int(round(bbox_width)), int(round(bbox_height))))
         sample['img'] = cv2.warpAffine(face_translated, S, (self.width, self.height))
         # Project landmarks
-        lnds_translated = cv2.warpAffine(sample['landmarks'], T, (int(round(bbox_width)), int(round(bbox_height))))
-        sample['landmarks'] = cv2.warpAffine(lnds_translated, S, (self.width, self.height))
+        num_landmarks = len(sample['landmarks'])
+        lnds_translated = np.transpose(T.dot(np.transpose(cv2.convertPointsToHomogeneous(sample['landmarks']).reshape(num_landmarks, 3))))
+        sample['landmarks'] = np.transpose(S.dot(np.transpose(cv2.convertPointsToHomogeneous(lnds_translated).reshape(num_landmarks, 3))))
         return sample
 
 

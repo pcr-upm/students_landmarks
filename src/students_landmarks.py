@@ -92,8 +92,8 @@ class StudentsLandmarks(Alignment):
         print('Load model')
         if self.backbone == 'resnet':
             self.model = LitResNet(num_classes=len(self.indices), resnet_version=50, optimizer='adam', lr=1e-3, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
-        elif self.backbone == 'shg':
-            self.model = LitSHG(num_modules=1, num_landmarks=len(self.indices)-1, batch_size=self.batch_size, lr=0.0001, weight_decay=0)
+        # elif self.backbone == 'shg':
+        #     self.model = LitSHG(num_modules=1, num_landmarks=len(self.indices)-1, batch_size=self.batch_size, lr=0.0001, weight_decay=0)
         else:
             raise ValueError('Backbone is not implemented')
         torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')
@@ -103,8 +103,8 @@ class StudentsLandmarks(Alignment):
             print('Loading model from {}'.format(model_path))
             if self.backbone == 'resnet':
                 self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'), num_classes=len(self.indices), resnet_version=50)
-            elif self.backbone == 'shg':
-                self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
+            # elif self.backbone == 'shg':
+            #     self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
             self.model.to(self.device)
             self.model.eval()
 
@@ -112,7 +112,7 @@ class StudentsLandmarks(Alignment):
         from images_framework.src.datasets import Database
         from images_framework.src.annotations import GenericLandmark
         from images_framework.alignment.landmarks import lps
-        from images_framework.alignment.students_landmarks.src.utils import get_landmarks_local_softmax
+        # from images_framework.alignment.students_landmarks.src.utils import get_landmarks_local_softmax
         datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()
