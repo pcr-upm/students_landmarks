@@ -44,6 +44,7 @@ class CropBbox:
         # Enlarge bounding box
         shift = max_size*self.bbox_scale
         bbox_enlarged = (bbox_squared[0]-shift, bbox_squared[1]-shift, bbox_squared[2]+shift, bbox_squared[3]+shift)
+        sample['bbox_enlarged'] = bbox_enlarged
         # Project image
         T = np.zeros((2, 3), dtype=float)
         T[0, 0], T[0, 1], T[0, 2] = 1, 0, -bbox_enlarged[0]
@@ -55,8 +56,9 @@ class CropBbox:
         sample['img'] = cv2.warpAffine(face_translated, S, (self.width, self.height))
         # Project landmarks
         num_landmarks = len(sample['landmarks'])
-        lnds_translated = np.transpose(T.dot(np.transpose(cv2.convertPointsToHomogeneous(sample['landmarks']).reshape(num_landmarks, 3))))
-        sample['landmarks'] = np.transpose(S.dot(np.transpose(cv2.convertPointsToHomogeneous(lnds_translated).reshape(num_landmarks, 3))))
+        if num_landmarks > 0:
+            lnds_translated = np.transpose(T.dot(np.transpose(cv2.convertPointsToHomogeneous(sample['landmarks']).reshape(num_landmarks, 3))))
+            sample['landmarks'] = np.transpose(S.dot(np.transpose(cv2.convertPointsToHomogeneous(lnds_translated).reshape(num_landmarks, 3))))
         return sample
 
 

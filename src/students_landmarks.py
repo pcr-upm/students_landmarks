@@ -102,7 +102,7 @@ class StudentsLandmarks(Alignment):
             model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone == 'resnet':
-                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'), num_classes=len(self.indices), resnet_version=50)
+                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=35-val_loss=18.24602.ckpt'), num_classes=len(self.indices), resnet_version=50)
             # elif self.backbone == 'shg':
             #     self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
             self.model.to(self.device)
@@ -122,8 +122,9 @@ class StudentsLandmarks(Alignment):
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
-                output = self.model(batch['img'].float().to(self.device))
-                landmarks = output.squeeze().cpu().numpy()
+                outputs = self.model(batch['img'].float().to(self.device))
+                outputs = outputs.view(-1, len(self.indices), 2)
+                landmarks = outputs.squeeze().cpu().numpy()
                 # if self.backbone == 'shg':
                 #     output = get_landmarks_local_softmax(output, temperature=10, window=5, device=self.device).squeeze().cpu()
                 #     bbox_res = batch['bbox_res'][0]
@@ -136,4 +137,6 @@ class StudentsLandmarks(Alignment):
                 for idx, pt in enumerate(landmarks):
                     label = self.indices[idx]
                     lp = list(parts.keys())[next((ids for ids, xs in enumerate(parts.values()) for x in xs if x == label), None)]
-                    obj_pred.add_landmark(GenericLandmark(label, lp, pt.numpy().tolist(), True), lps[type(lp)])
+                    pt_x = pt[0] + batch['bbox_enlarged'][0].squeeze().cpu().numpy()
+                    pt_y = pt[1] + batch['bbox_enlarged'][1].squeeze().cpu().numpy()
+                    obj_pred.add_landmark(GenericLandmark(label, lp, (pt_x, pt_y), True), lps[type(lp)])
