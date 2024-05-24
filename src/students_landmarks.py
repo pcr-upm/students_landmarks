@@ -87,7 +87,7 @@ class StudentsLandmarks(Alignment):
         import torchsummary
         from images_framework.src.constants import Modes
         from images_framework.alignment.students_landmarks.src.lit_resnet import LitResNet
-        from images_framework.alignment.students_landmarks.src.SHG.StackedHourglass_pl import LitSHG
+        # from images_framework.alignment.students_landmarks.src.lit_shg import LitSHG
         # Set up the neural network to train
         print('Load model')
         if self.backbone == 'resnet':

@@ -29,7 +29,7 @@ class LitResNet(pl.LightningModule):
         # Replace old FC layer with Identity, so we can train our own
         linear_size = list(self.model.children())[-1].in_features
         # Replace final layer for fine-tuning
-        self.model.fc = nn.Linear(linear_size, num_classes)
+        self.model.fc = nn.Linear(in_features=linear_size, out_features=num_classes*2)
         # Option to only tune the fully-connected layers
         if tune_fc_only:
             for child in list(self.model.children())[:-1]:
@@ -46,6 +46,7 @@ class LitResNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['landmarks'].float()
         outputs = self.model(inputs)
+        outputs = outputs.view(-1, self.num_classes, 2)
         loss = self.loss_fn(outputs, targets)
         return loss
 
