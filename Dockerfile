@@ -14,7 +14,7 @@ RUN git clone git@github.com:pcr-upm/students_landmarks.git images_framework/ali
 ADD data /images_framework/alignment/students_landmarks/data
 
 # Copy the repository from the previous image
-FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvcr.io/nvidia/cuda:12.2.0-base-ubuntu22.04
 ENV LANG=C.UTF-8
 ENV TZ=Europe/Madrid
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone

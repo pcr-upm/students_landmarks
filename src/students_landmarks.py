@@ -16,7 +16,8 @@ np.random.seed(42)
 
 
 class Backbone(Enum):
-    SHG = 'SHG'
+    RESNET = 'resnet'
+    SHG = 'shg'
 
 
 class StudentsLandmarks(Alignment):
@@ -67,8 +68,8 @@ class StudentsLandmarks(Alignment):
         from pytorch_lightning import loggers as pl_loggers
         from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
         # Prepare dataloaders
-        dataset_train = MyDataset(anns_train, self.database, self.indices, (self.width, self.height), Mode.TRAIN)
-        dataset_valid = MyDataset(anns_valid, self.database, self.indices, (self.width, self.height), Mode.VALID)
+        dataset_train = MyDataset(anns_train, self.database, self.backbone, self.indices, self.width, self.height, Mode.TRAIN)
+        dataset_valid = MyDataset(anns_valid, self.database, self.backbone, self.indices, self.width, self.height, Mode.VALID)
         drop_last = (len(dataset_train) % self.batch_size) == 1  # discard a last iteration with a single sample
         dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=drop_last)
         dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
@@ -85,10 +86,13 @@ class StudentsLandmarks(Alignment):
     def load(self, mode):
         import torchsummary
         from images_framework.src.constants import Modes
+        from images_framework.alignment.students_landmarks.src.lit_resnet import LitResNet
         from images_framework.alignment.students_landmarks.src.SHG.StackedHourglass_pl import LitSHG
         # Set up the neural network to train
         print('Load model')
-        if self.backbone == 'SHG':
+        if self.backbone == 'resnet':
+            self.model = LitResNet(num_classes=len(self.indices), resnet_version=50, optimizer='adam', lr=1e-3, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+        elif self.backbone == 'shg':
             self.model = LitSHG(num_modules=1, num_landmarks=len(self.indices)-1, batch_size=self.batch_size, lr=0.0001, weight_decay=0)
         else:
             raise ValueError('Backbone is not implemented')
@@ -97,7 +101,9 @@ class StudentsLandmarks(Alignment):
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
             print('Loading model from {}'.format(model_path))
-            if self.backbone == 'SHG':
+            if self.backbone == 'resnet':
+                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'), num_classes=len(self.indices), resnet_version=50)
+            elif self.backbone == 'shg':
                 self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
             self.model.to(self.device)
             self.model.eval()
@@ -111,20 +117,22 @@ class StudentsLandmarks(Alignment):
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()
         # Prepare dataloader
-        dataset_test = MyDataset([pred], self.database, self.indices, (self.width, self.height), Mode.TEST)
+        dataset_test = MyDataset([pred], self.database, self.backbone, self.indices, self.width, self.height, Mode.TEST)
         dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         with torch.no_grad():
-            for index, batch in enumerate(dl_test):
+            for batch in dl_test:
                 # Generate prediction
                 output = self.model(batch['img'].float().to(self.device))
-                landmarks = get_landmarks_local_softmax(output, temperature=10, window=5, device=self.device).squeeze().cpu()
+                landmarks = output.squeeze().cpu().numpy()
+                # if self.backbone == 'shg':
+                #     output = get_landmarks_local_softmax(output, temperature=10, window=5, device=self.device).squeeze().cpu()
+                #     bbox_res = batch['bbox_res'][0]
+                #     bbox = batch['bbox'][0]
+                #     landmarks = output / 0.5
+                #     landmarks = (landmarks - bbox_res[0:2]) / bbox_res[2:4]
+                #     landmarks = (landmarks * bbox[2:4]) + bbox[0:2]
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
-                bbox_res = batch['bbox_res'][0]
-                bbox = batch['bbox'][0]
-                landmarks = landmarks / 0.5
-                landmarks = (landmarks-bbox_res[0:2]) / bbox_res[2:4]
-                landmarks = (landmarks*bbox[2:4]) + bbox[0:2]
                 for idx, pt in enumerate(landmarks):
                     label = self.indices[idx]
                     lp = list(parts.keys())[next((ids for ids, xs in enumerate(parts.values()) for x in xs if x == label), None)]
