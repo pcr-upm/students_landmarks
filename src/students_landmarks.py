@@ -58,6 +58,8 @@ class StudentsLandmarks(Alignment):
         self.patience = args.patience
         if self.database in ['300w_public', '300w_private', '300wlp']:
             self.indices = [101, 102, 103, 104, 105, 106, 107, 108, 24, 110, 111, 112, 113, 114, 115, 116, 117, 1, 119, 2, 121, 3, 4, 124, 5, 126, 6, 128, 129, 130, 17, 16, 133, 134, 135, 18, 7, 138, 139, 8, 141, 142, 11, 144, 145, 12, 147, 148, 20, 150, 151, 22, 153, 154, 21, 156, 157, 23, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168]
+        elif self.database in 'cofw':
+            self.indices = [1, 6, 3, 4, 101, 102, 103, 104, 7, 12, 8, 11, 9, 10, 13, 14, 105, 106, 16, 18, 17, 107, 20, 21, 22, 108, 109, 23, 24]
         elif self.database in 'wflw':
             self.indices = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 24, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 1, 134, 2, 136, 3, 138, 139, 140, 141, 4, 143, 5, 145, 6, 147, 148, 149, 150, 151, 152, 153, 17, 16, 156, 157, 158, 18, 7, 161, 9, 163, 8, 165, 10, 167, 11, 169, 13, 171, 12, 173, 14, 175, 20, 177, 178, 22, 180, 181, 21, 183, 184, 23, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197]
         else:
@@ -102,9 +104,9 @@ class StudentsLandmarks(Alignment):
             model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone == 'resnet':
-                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=35-val_loss=18.24602.ckpt'), num_classes=len(self.indices), resnet_version=50)
+                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), resnet_version=50)
             # elif self.backbone == 'shg':
-            #     self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
+            #     self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'))
             self.model.to(self.device)
             self.model.eval()
 

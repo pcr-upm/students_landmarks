@@ -37,7 +37,14 @@ class MyDataset(Dataset):
                     self.obj_indices.append(obj_idx)
                     self.filepaths.append(img_ann.filename)
                     self.bboxes.append(np.array(obj_ann.bb))
-                    self.landmarks.append(np.array([lnd.pos for lnds in [landmarks for lps in obj_ann.landmarks.values() for landmarks in lps.values()] for lnd in lnds]))
+                    # Sort landmarks using self.indices order
+                    if mode != Mode.TEST:
+                        indices, landmarks = zip(*[(lnd.label, lnd.pos) for lnds in [landmarks for lps in obj_ann.landmarks.values() for landmarks in lps.values()] for lnd in lnds])
+                        indices = [self.indices.index(idx) for idx in indices]
+                        landmarks = np.array(landmarks)[indices]
+                    else:
+                        landmarks = []
+                    self.landmarks.append(np.array(landmarks))
 
     def __len__(self):
         # Returns the length of the dataset
