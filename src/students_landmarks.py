@@ -4,6 +4,8 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import os
+
+import cv2
 import torch
 import numpy as np
 from enum import Enum
@@ -136,9 +138,12 @@ class StudentsLandmarks(Alignment):
                 #     landmarks = (landmarks * bbox[2:4]) + bbox[0:2]
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
+                bbox_enlarged = batch['bbox_enlarged'].squeeze().cpu().numpy()
+                bbox_width = bbox_enlarged[2] - bbox_enlarged[0]
+                bbox_height = bbox_enlarged[3] - bbox_enlarged[1]
+                scale = np.array([self.width/bbox_width, self.height/bbox_height])
+                landmarks = (landmarks/scale) + bbox_enlarged[0:2]
                 for idx, pt in enumerate(landmarks):
                     label = self.indices[idx]
                     lp = list(parts.keys())[next((ids for ids, xs in enumerate(parts.values()) for x in xs if x == label), None)]
-                    pt_x = pt[0] + batch['bbox_enlarged'][0].squeeze().cpu().numpy()
-                    pt_y = pt[1] + batch['bbox_enlarged'][1].squeeze().cpu().numpy()
-                    obj_pred.add_landmark(GenericLandmark(label, lp, (pt_x, pt_y), True), lps[type(lp)])
+                    obj_pred.add_landmark(GenericLandmark(label, lp, pt, True), lps[type(lp)])

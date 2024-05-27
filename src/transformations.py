@@ -4,6 +4,7 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import cv2
+import torch
 import numpy as np
 
 
@@ -44,7 +45,7 @@ class CropBbox:
         # Enlarge bounding box
         shift = max_size*self.bbox_scale
         bbox_enlarged = (bbox_squared[0]-shift, bbox_squared[1]-shift, bbox_squared[2]+shift, bbox_squared[3]+shift)
-        sample['bbox_enlarged'] = bbox_enlarged
+        sample['bbox_enlarged'] = torch.tensor(bbox_enlarged)
         # Project image
         T = np.zeros((2, 3), dtype=float)
         T[0, 0], T[0, 1], T[0, 2] = 1, 0, -bbox_enlarged[0]
