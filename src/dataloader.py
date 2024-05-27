@@ -40,11 +40,11 @@ class MyDataset(Dataset):
                     # Sort landmarks using self.indices order
                     if mode != Mode.TEST:
                         indices, landmarks = zip(*[(lnd.label, lnd.pos) for lnds in [landmarks for lps in obj_ann.landmarks.values() for landmarks in lps.values()] for lnd in lnds])
-                        indices = [self.indices.index(idx) for idx in indices]
-                        landmarks = np.array(landmarks)[indices]
+                        order = [indices.index(idx) for idx in self.indices]
+                        landmarks = np.array(landmarks)[order]
                     else:
-                        landmarks = []
-                    self.landmarks.append(np.array(landmarks))
+                        landmarks = np.array([])
+                    self.landmarks.append(landmarks)
 
     def __len__(self):
         # Returns the length of the dataset
