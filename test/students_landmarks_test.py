@@ -136,8 +136,8 @@ def main():
     composite.add(sa)
     composite.parse_options(unknown)
     composite.load(Modes.TEST)
-    dirname = 'output/images/'
     viewer = Viewer('students_landmarks_test')
+    dirname = 'images_framework/output/images/'
     Path(dirname).mkdir(parents=True, exist_ok=True)
 
     # Process frame and show results
