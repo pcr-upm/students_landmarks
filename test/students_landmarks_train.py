@@ -62,13 +62,13 @@ def load_annotations(anns_file):
 
 def main():
     """
-    Students landmarks database script.
+    Students landmarks train script.
     """
     unknown, anns_file = parse_options()
     # Load computer vision components
     composite = Composite()
-    sr = StudentsLandmarks('images_framework/alignment/students_landmarks/')
-    composite.add(sr)
+    sa = StudentsLandmarks('images_framework/alignment/students_landmarks/')
+    composite.add(sa)
 
     composite.parse_options(unknown)
     anns = load_annotations(anns_file)

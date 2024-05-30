@@ -78,8 +78,8 @@ def main():
     unknown, anns_file, show_viewer, save_file, save_image = parse_options()
     # Load computer vision components
     composite = Composite()
-    sr = StudentsLandmarks('images_framework/alignment/students_landmarks/')
-    composite.add(sr)
+    sa = StudentsLandmarks('images_framework/alignment/students_landmarks/')
+    composite.add(sa)
 
     composite.parse_options(unknown)
     anns = load_annotations(anns_file)

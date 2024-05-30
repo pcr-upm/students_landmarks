@@ -132,8 +132,8 @@ def main():
 
     # Load vision components
     composite = Composite()
-    sr = StudentsLandmarks('images_framework/alignment/students_landmarks/')
-    composite.add(sr)
+    sa = StudentsLandmarks('images_framework/alignment/students_landmarks/')
+    composite.add(sa)
     composite.parse_options(unknown)
     composite.load(Modes.TEST)
     dirname = 'output/images/'
