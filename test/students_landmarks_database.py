@@ -94,6 +94,8 @@ def main():
         Path(dirname).mkdir(parents=True, exist_ok=True)
     for i in tqdm(range(len(anns)), file=sys.stdout):
         pred = copy.deepcopy(anns[i])
+        for img_pred in pred.images:
+            img_pred.clear()
         composite.process(anns[i], pred)
         if show_viewer:
             for img_pred in pred.images:
