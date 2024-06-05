@@ -45,5 +45,5 @@ usage: StudentsLandmarks [--gpu GPU] --backbone {SHG} [--batch-size BATCH_SIZE] 
 
 * Use the --patience option to set number of epochs with no improvement after which training will be stopped.
 ```
-> python images_framework/alignment/students_landmarks/test/students_landmarks_test.py --input-data images_framework/alignment/students_landmarks/test/example.tif --database wflw --gpu 0 --backbone shg --save-image
+> python images_framework/alignment/students_landmarks/test/students_landmarks_test.py --input-data images_framework/alignment/students_landmarks/test/example.tif --database wflw --gpu 0 --backbone resnet --save-image
 ```
