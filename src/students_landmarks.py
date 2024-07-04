@@ -4,8 +4,6 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import os
-
-import cv2
 import torch
 import numpy as np
 from enum import Enum
@@ -24,7 +22,7 @@ class Backbone(Enum):
 
 class StudentsLandmarks(Alignment):
     """
-    Face alignment using an Stacked Hourglass algorithm
+    Face alignment using a popular algorithm
     """
     def __init__(self, path):
         super().__init__()
@@ -33,6 +31,11 @@ class StudentsLandmarks(Alignment):
         self.device = None
         self.backbone = None
         self.indices = None
+        self.version = None
+        self.batch_size = None
+        self.epochs = None
+        self.patience = None
+        self.order = None
         self.width = 256
         self.height = 256
 
@@ -48,13 +51,14 @@ class StudentsLandmarks(Alignment):
                             help='Number of images in each mini-batch.')
         parser.add_argument('--epochs', dest='epochs', type=int, default=200,
                             help='Number of sweeps over the dataset to train.')
-        parser.add_argument('--patience', dest='patience', type=int, default=10,
+        parser.add_argument('--patience', dest='patience', type=int, default=20,
                             help='Number of epochs with no improvement after which training will be stopped.')
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
         self.device = torch.device('cuda:{}'.format(args.gpu[0]) if mode_gpu else 'cpu')
-        self.backbone = args.backbone
+        self.backbone = Backbone(args.backbone)
+        self.version = 50 if self.backbone is Backbone.RESNET else 0
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
@@ -72,19 +76,19 @@ class StudentsLandmarks(Alignment):
         from pytorch_lightning import loggers as pl_loggers
         from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
         # Prepare dataloaders
-        dataset_train = MyDataset(anns_train, self.database, self.backbone, self.indices, self.width, self.height, Mode.TRAIN)
-        dataset_valid = MyDataset(anns_valid, self.database, self.backbone, self.indices, self.width, self.height, Mode.VALID)
+        dataset_train = MyDataset(anns_train, self.indices, self.backbone, self.width, self.height, Mode.TRAIN)
+        dataset_valid = MyDataset(anns_valid, self.indices, self.backbone, self.width, self.height, Mode.VALID)
         drop_last = (len(dataset_train) % self.batch_size) == 1  # discard a last iteration with a single sample
         dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=drop_last)
         dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         # Train the model
         print('Train model')
-        model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
+        model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
         ckpt_path = os.path.join(model_path+'ckpt/', 'last.ckpt')
-        loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/'), PCRLogger()]
-        checkpoint_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
-        early_stopping = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
-        trainer = pl.Trainer(logger=loggers, accelerator='auto', devices='auto', enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stopping])
+        loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/', default_hp_metric=False), PCRLogger()]
+        early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
+        ckpt_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
+        trainer = pl.Trainer(accelerator='auto', devices='auto', enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, logger=loggers, callbacks=[early_callback, ckpt_callback])
         trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
@@ -94,21 +98,22 @@ class StudentsLandmarks(Alignment):
         # from images_framework.alignment.students_landmarks.src.lit_shg import LitSHG
         # Set up the neural network to train
         print('Load model')
-        if self.backbone == 'resnet':
-            self.model = LitResNet(num_classes=len(self.indices), resnet_version=50, optimizer='adam', lr=1e-3, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
-        # elif self.backbone == 'shg':
-        #     self.model = LitSHG(num_modules=1, num_landmarks=len(self.indices)-1, batch_size=self.batch_size, lr=0.0001, weight_decay=0)
+        torch.set_float32_matmul_precision('medium')
+        if self.backbone is Backbone.RESNET:
+            self.model = LitResNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+        # elif self.backbone is Backbone.SHG:
+        #     self.model = LitSHG(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         else:
             raise ValueError('Backbone is not implemented')
         torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')
         # Set up the neural network to test
         if mode is Modes.TEST:
-            model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
+            model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
             print('Loading model from {}'.format(model_path))
-            if self.backbone == 'resnet':
-                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), resnet_version=50)
-            # elif self.backbone == 'shg':
-            #     self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'))
+            if self.backbone is Backbone.RESNET:
+                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
+            # elif self.backbone is Backbone.SHG:
+            #     self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
             self.model.to(self.device)
             self.model.eval()
 
@@ -121,7 +126,7 @@ class StudentsLandmarks(Alignment):
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()
         # Prepare dataloader
-        dataset_test = MyDataset([pred], self.database, self.backbone, self.indices, self.width, self.height, Mode.TEST)
+        dataset_test = MyDataset([pred], self.indices, self.backbone, self.width, self.height, Mode.TEST)
         dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         with torch.no_grad():
             for batch in dl_test:
@@ -129,7 +134,7 @@ class StudentsLandmarks(Alignment):
                 outputs = self.model(batch['img'].float().to(self.device))
                 outputs = outputs.view(-1, len(self.indices), 2)
                 landmarks = outputs.squeeze().cpu().numpy()
-                # if self.backbone == 'shg':
+                # if self.backbone is Backbone.SHG:
                 #     output = get_landmarks_local_softmax(output, temperature=10, window=5, device=self.device).squeeze().cpu()
                 #     bbox_res = batch['bbox_res'][0]
                 #     bbox = batch['bbox'][0]

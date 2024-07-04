@@ -8,7 +8,7 @@ import numpy as np
 from enum import Enum
 from torch.utils.data import Dataset
 from torchvision import transforms
-from images_framework.alignment.students_landmarks.src.transformations import Illumination, CropBbox, ImgPermute
+from images_framework.alignment.students_landmarks.src.transformations import Illumination, CropBbox, ImgPermute, Heatmaps
 
 
 class Mode(Enum):
@@ -21,8 +21,7 @@ class MyDataset(Dataset):
     """
     Create a dataset class for our face landmarks data sets.
     """
-    def __init__(self, anns, database, backbone, indices, width, height, mode: Mode):
-        self.database = database
+    def __init__(self, anns, indices, backbone, width, height, mode: Mode):
         self.backbone = backbone
         self.indices = indices
         self.width = width
@@ -36,7 +35,7 @@ class MyDataset(Dataset):
                     self.img_indices.append(img_idx)
                     self.obj_indices.append(obj_idx)
                     self.filepaths.append(img_ann.filename)
-                    self.bboxes.append(np.array(obj_ann.bb))
+                    self.bboxes.append(np.array(obj_ann.bb, dtype=np.float64))
                     # Sort landmarks using self.indices order
                     if mode != Mode.TEST:
                         indices, landmarks = zip(*[(lnd.label, lnd.pos) for lnds in [landmarks for lps in obj_ann.landmarks.values() for landmarks in lps.values()] for lnd in lnds])
@@ -54,15 +53,16 @@ class MyDataset(Dataset):
         # Load image
         # This is memory efficient because all the images are not stored in the memory at once but read as required
         image = cv2.imread(self.filepaths[idx], cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'landmarks': self.landmarks[idx]}
         # Composes several transforms together
-        if self.mode == Mode.TRAIN:
-            ops = [Illumination(), CropBbox(self.width, self.height, 0.3), ImgPermute()]
-            # if self.backbone == 'shg':
+        if self.mode is Mode.TRAIN:
+            ops = [Illumination((0.1, 0.2, 0.2)), CropBbox(self.width, self.height, 0.3), ImgPermute()]
+            # if self.backbone is Backbone.SHG:
             #     ops.append(Heatmaps(len(self.indices)))
         elif self.mode == Mode.VALID:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
-            # if self.backbone == 'shg':
+            # if self.backbone is Backbone.SHG:
             #     ops.append(Heatmaps(len(self.indices)))
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
