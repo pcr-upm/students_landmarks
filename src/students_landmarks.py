@@ -28,6 +28,7 @@ class StudentsLandmarks(Alignment):
         super().__init__()
         self.path = path
         self.model = None
+        self.gpus = None
         self.device = None
         self.backbone = None
         self.indices = None
@@ -56,7 +57,8 @@ class StudentsLandmarks(Alignment):
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
-        self.device = torch.device('cuda:{}'.format(args.gpu[0]) if mode_gpu else 'cpu')
+        self.gpus = args.gpu
+        self.device = torch.device('cuda' if mode_gpu else 'cpu')
         self.backbone = Backbone(args.backbone)
         self.version = 50 if self.backbone is Backbone.RESNET else 0
         self.batch_size = args.batch_size
@@ -85,12 +87,13 @@ class StudentsLandmarks(Alignment):
         dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         # Train the model
         print('Train model')
+        accelerator = 'gpu' if 'cuda' in str(self.device) else 'cpu'
         model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
         ckpt_path = os.path.join(model_path+'ckpt/', 'last.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/', default_hp_metric=False), PCRLogger()]
         early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
         ckpt_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
-        trainer = pl.Trainer(accelerator='auto', devices='auto', enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, logger=loggers, callbacks=[early_callback, ckpt_callback])
+        trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, logger=loggers, callbacks=[early_callback, ckpt_callback])
         trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
