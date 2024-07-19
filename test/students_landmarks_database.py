@@ -6,7 +6,9 @@ __email__ = 'roberto.valle@upm.es'
 import os
 import sys
 sys.path.append(os.getcwd())
+import cv2
 import copy
+import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 from images_framework.src.constants import Modes
@@ -95,7 +97,14 @@ def main():
     for i in tqdm(range(len(anns)), file=sys.stdout):
         pred = copy.deepcopy(anns[i])
         for img_pred in pred.images:
-            img_pred.clear()
+            for obj_pred in img_pred.objects:
+                obj_pred.clear()
+                if obj_pred.bb == (-1, -1, -1, -1):
+                    if all(np.array_equal(contour, np.array([[[-1, -1]], [[-1, -1]], [[-1, -1]]])) for contour in obj_pred.multipolygon):
+                        obj_pred.bb = cv2.boundingRect(np.array([pt for contour in obj_pred.multipolygon for pt in contour]))
+                        obj_pred.bb = (obj_pred.bb[0], obj_pred.bb[1], obj_pred.bb[0] + obj_pred.bb[2], obj_pred.bb[1] + obj_pred.bb[3])
+                    else:
+                        raise ValueError('Cannot perform alignment due to undefined object location')
         composite.process(anns[i], pred)
         if show_viewer:
             for img_pred in pred.images:
