@@ -34,4 +34,4 @@ ENV PATH /home/username/conda/envs/students/bin:/home/username/conda/bin:$PATH
 SHELL ["conda", "run", "-n", "students", "/bin/bash", "-c"]
 # Install dependencies
 RUN pip install tqdm Pillow opencv-python opencv-contrib-python rasterio scipy scikit-learn
-RUN pip install torch pytorch-lightning torchvision torch-summary tensorboard
+RUN pip install torch pytorch-lightning torchvision torchinfo tensorboard
