@@ -82,12 +82,11 @@ class ImgPermute:
 class Heatmaps:
     def __call__(self, sample):
         # Heatmap generation
-        _, width, height = sample['img'].shape
-        sample['heatmaps'] = []
-        for lnd in sample['landmarks']:
-            heatmap = np.zeros(shape=(width, height), dtype=float)
-            pt = np.array(lnd, dtype=int)[0]
-            heatmap[pt[1], pt[0]] = 1.0
-            sample['heatmaps'].append(heatmap)
-        sample['heatmaps'] = np.array(sample['heatmaps'])
+        _, height, width = sample['img'].shape
+        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), width, height), dtype=float)
+        for idx, lnd in enumerate(sample['landmarks']):
+            (x, y) = np.array(lnd, dtype=int)[0]
+            x = 0 if x < 0 else width-1 if x > width-1 else x
+            y = 0 if y < 0 else height-1 if y > height-1 else y
+            sample['heatmaps'][idx, y, x] = 1.0
         return sample

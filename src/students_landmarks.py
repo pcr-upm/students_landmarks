@@ -18,7 +18,6 @@ np.random.seed(42)
 class Backbone(Enum):
     RESNET = 'resnet'
     UNET = 'unet'
-    SHG = 'shg'
 
 
 class StudentsLandmarks(Alignment):
@@ -61,7 +60,7 @@ class StudentsLandmarks(Alignment):
         self.gpus = args.gpu
         self.device = torch.device('cuda' if mode_gpu else 'cpu')
         self.backbone = Backbone(args.backbone)
-        self.version = 50 if self.backbone is Backbone.RESNET else 0
+        self.version = 50 if self.backbone is Backbone.RESNET else 34 if self.backbone is Backbone.UNET else 0
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
@@ -104,16 +103,13 @@ class StudentsLandmarks(Alignment):
         from images_framework.src.constants import Modes
         from images_framework.alignment.students_landmarks.src.lit_resnet import LitResNet
         from images_framework.alignment.students_landmarks.src.lit_unet import LitUNet
-        from images_framework.alignment.students_landmarks.src.lit_shg import LitSHG
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
         if self.backbone is Backbone.RESNET:
             self.model = LitResNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.UNET:
-            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
-        elif self.backbone is Backbone.SHG:
-            self.model = LitSHG(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=False)
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
@@ -126,8 +122,6 @@ class StudentsLandmarks(Alignment):
                 self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
             elif self.backbone is Backbone.UNET:
                 self.model = LitUNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
-            elif self.backbone is Backbone.SHG:
-                self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
             self.model.eval()
 
     def process(self, ann, pred):
@@ -148,7 +142,7 @@ class StudentsLandmarks(Alignment):
                 if self.backbone is Backbone.RESNET:  # [batch_size, num_landmarks*2]
                     outputs = outputs.view(-1, len(self.indices), 2)
                     landmarks = outputs.squeeze().cpu().numpy()
-                elif self.backbone is Backbone.UNET or self.backbone is Backbone.SHG:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
+                elif self.backbone is Backbone.UNET:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
                     landmarks = [cv2.minMaxLoc(outputs[idx])[3] for idx in self.indices]
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
