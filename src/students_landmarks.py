@@ -17,6 +17,7 @@ np.random.seed(42)
 
 class Backbone(Enum):
     RESNET = 'resnet'
+    UNET = 'unet'
     SHG = 'shg'
 
 
@@ -102,12 +103,15 @@ class StudentsLandmarks(Alignment):
         import torchinfo
         from images_framework.src.constants import Modes
         from images_framework.alignment.students_landmarks.src.lit_resnet import LitResNet
+        from images_framework.alignment.students_landmarks.src.lit_unet import LitUNet
         from images_framework.alignment.students_landmarks.src.lit_shg import LitSHG
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
         if self.backbone is Backbone.RESNET:
             self.model = LitResNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+        elif self.backbone is Backbone.UNET:
+            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.SHG:
             self.model = LitSHG(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         else:
@@ -120,15 +124,17 @@ class StudentsLandmarks(Alignment):
             print('Loading model from {}'.format(model_path))
             if self.backbone is Backbone.RESNET:
                 self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
+            elif self.backbone is Backbone.UNET:
+                self.model = LitUNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
             elif self.backbone is Backbone.SHG:
                 self.model = LitSHG.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
             self.model.eval()
 
     def process(self, ann, pred):
+        import cv2
         from images_framework.src.datasets import Database
         from images_framework.src.annotations import GenericLandmark
         from images_framework.alignment.landmarks import lps
-        from images_framework.alignment.students_landmarks.src.utils import get_landmarks_local_softmax
         datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()
@@ -139,15 +145,11 @@ class StudentsLandmarks(Alignment):
             for batch in dl_test:
                 # Generate prediction
                 outputs = self.model(batch['img'].float().to(self.device))
-                outputs = outputs.view(-1, len(self.indices), 2)
-                landmarks = outputs.squeeze().cpu().numpy()
-                if self.backbone is Backbone.SHG:
-                    output = get_landmarks_local_softmax(output, temperature=10, window=5, device=self.device).squeeze().cpu()
-                    bbox_res = batch['bbox_res'][0]
-                    bbox = batch['bbox'][0]
-                    landmarks = output / 0.5
-                    landmarks = (landmarks - bbox_res[0:2]) / bbox_res[2:4]
-                    landmarks = (landmarks * bbox[2:4]) + bbox[0:2]
+                if self.backbone is Backbone.RESNET:  # [batch_size, num_landmarks*2]
+                    outputs = outputs.view(-1, len(self.indices), 2)
+                    landmarks = outputs.squeeze().cpu().numpy()
+                elif self.backbone is Backbone.UNET or self.backbone is Backbone.SHG:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
+                    landmarks = [cv2.minMaxLoc(outputs[idx])[3] for idx in self.indices]
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
                 bbox_enlarged = batch['bbox_enlarged'].squeeze().cpu().numpy()

@@ -80,35 +80,14 @@ class ImgPermute:
 
 
 class Heatmaps:
-    def __init__(self, num_maps):
-        map_size = (128, 128)
-        sigma = 1.5
-        stride = 1
-        self.num_maps = num_maps
-        self.sigma = sigma
-        self.double_sigma = 2*sigma*sigma
-        self.double_sigma_pi = self.double_sigma*np.pi
-        self.stride = stride
-        self.norm = False
-        if isinstance(map_size, (tuple, list)):
-            self.width = map_size[0]
-            self.height = map_size[1]
-        else:
-            self.width = map_size
-            self.height = map_size
-        grid_x = np.arange(self.width)*stride + stride/2 - 0.5
-        grid_y = np.arange(self.height)*stride + stride/2 - 0.5
-        self.grid_x = np.repeat(grid_x.reshape(1, self.width), self.num_maps, axis=0)
-        self.grid_y = np.repeat(grid_y.reshape(1, self.height), self.num_maps, axis=0)
-
     def __call__(self, sample):
-        landmarks = sample['landmarks']
-        landmarks = landmarks[-self.num_maps:]
         # Heatmap generation
-        exp_x = np.exp(-(self.grid_x-landmarks[:, 0].reshape(-1, 1))**2/self.double_sigma)
-        exp_y = np.exp(-(self.grid_y-landmarks[:, 1].reshape(-1, 1))**2/self.double_sigma)
-        heatmaps = np.matmul(exp_y.reshape(self.num_maps, self.height, 1), exp_x.reshape(self.num_maps, 1, self.width))
-        if self.norm:
-            heatmaps = heatmaps/self.double_sigma_pi
-        sample['heatmaps'] = heatmaps
+        _, width, height = sample['img'].shape
+        sample['heatmaps'] = []
+        for lnd in sample['landmarks']:
+            heatmap = np.zeros(shape=(width, height), dtype=float)
+            pt = np.array(lnd, dtype=int)[0]
+            heatmap[pt[1], pt[0]] = 1.0
+            sample['heatmaps'].append(heatmap)
+        sample['heatmaps'] = np.array(sample['heatmaps'])
         return sample
