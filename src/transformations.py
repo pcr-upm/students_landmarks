@@ -74,7 +74,7 @@ class CropBbox:
 
 class ImgPermute:
     def __call__(self, sample):
-        # Converts a numpy image in H x W x C format to C x W x H format and changes the range to [0, 1]
+        # Converts a numpy image in H x W x C format to C x H x W format and changes the range to [0, 1]
         sample['img'] = sample['img'].transpose(2, 0, 1) / 255.0
         return sample
 
@@ -83,10 +83,12 @@ class Heatmaps:
     def __call__(self, sample):
         # Heatmap generation
         _, height, width = sample['img'].shape
-        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), width, height), dtype=float)
+        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), width*height), dtype=float)
         for idx, lnd in enumerate(sample['landmarks']):
             (x, y) = np.array(lnd, dtype=int)[0]
             x = 0 if x < 0 else width-1 if x > width-1 else x
             y = 0 if y < 0 else height-1 if y > height-1 else y
-            sample['heatmaps'][idx, y, x] = 1.0
+            heatmap = np.zeros(shape=(width, height), dtype=float)
+            heatmap[y, x] = 1.0
+            sample['heatmaps'][idx] = heatmap.reshape(width*height)
         return sample

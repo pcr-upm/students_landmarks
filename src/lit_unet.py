@@ -21,9 +21,8 @@ class LitUNet(pl.LightningModule):
         self.patience = patience
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.CrossEntropyLoss()
+        self.loss_fn = nn.BCEWithLogitsLoss()
         # Using a UNet architecture
-        print('resnet'+str(version))
         self.model = smp.Unet(encoder_name='resnet'+str(version), encoder_weights='imagenet' if transfer else None, in_channels=3, classes=num_classes)
 
     def forward(self, x):
@@ -38,6 +37,17 @@ class LitUNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['heatmaps'].float()
         outputs = self.model(inputs)
+        num_landmarks, width, height = outputs.shape[1], outputs.shape[2], outputs.shape[3]
+        outputs = outputs.view(-1, num_landmarks, width*height)
+        # outputs = nn.Softmax(dim=2)(outputs)
+        # import cv2
+        # import numpy as np
+        # for idx in range(num_landmarks):
+        #     anno = targets[0][idx].cpu().numpy().reshape(width, height)*255
+        #     pred = outputs[0][idx].cpu().numpy().reshape(width, height)*255
+        #     cv2.imshow('anno'+str(idx), anno[:, :, np.newaxis])
+        #     cv2.imshow('pred'+str(idx), pred[:, :, np.newaxis])
+        #     cv2.waitKey(0)
         loss = self.loss_fn(outputs, targets)
         return loss
 
