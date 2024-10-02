@@ -109,7 +109,7 @@ class StudentsLandmarks(Alignment):
         if self.backbone is Backbone.RESNET:
             self.model = LitResNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.UNET:
-            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True)
+            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=False)
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
@@ -146,14 +146,15 @@ class StudentsLandmarks(Alignment):
                     width, height = outputs.shape[2], outputs.shape[3]
                     # import torch.nn as nn
                     # outputs = outputs.view(-1, len(self.indices), width*height)
-                    # outputs = nn.Softmax(dim=2)(outputs)
+                    # outputs = nn.Softmax(dim=-1)(outputs)
                     heatmaps = outputs.squeeze().cpu().numpy()
                     landmarks = [cv2.minMaxLoc(heatmaps[idx].reshape(width, height))[3] for idx in range(len(self.indices))]
                     # cv2.imshow('img', cv2.cvtColor((batch['img']*255).squeeze().cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
                     # for idx in range(len(self.indices)):
-                    #     pred = (heatmaps[idx].reshape(width, height)[:, :, np.newaxis]*255).astype('uint8')
-                    #     cv2.circle(pred, landmarks[idx], 3, (0, 0, 0), -1)
-                    #     cv2.imshow('pred'+str(idx), pred)
+                    #     aux = heatmaps[idx].reshape(width, height)
+                    #     aux = cv2.normalize(aux[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+                    #     cv2.circle(aux, landmarks[idx], 3, (0, 0, 0), -1)
+                    #     cv2.imshow('aux'+str(idx), aux)
                     #     cv2.waitKey(0)
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
