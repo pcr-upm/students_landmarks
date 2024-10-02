@@ -87,7 +87,7 @@ class Heatmaps:
     def __call__(self, sample):
         # Heatmap generation
         _, height, width = sample['img'].shape
-        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), width*height), dtype=float)
+        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), width, height), dtype=float)
         for idx, lnd in enumerate(sample['landmarks']):
             (x, y) = np.array(lnd, dtype=int)[0]
             x = 0 if x < 0 else width-1 if x > width-1 else x
@@ -95,6 +95,5 @@ class Heatmaps:
             heatmap = np.zeros(shape=(width, height), dtype=float)
             heatmap[y, x] = 1.0
             # Apply gaussian filter to the ground-truth
-            heatmap = gaussian_filter(heatmap, sigma=self.sigma)
-            sample['heatmaps'][idx] = heatmap.reshape(width*height)
+            sample['heatmaps'][idx] = gaussian_filter(heatmap, sigma=self.sigma)
         return sample

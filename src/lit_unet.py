@@ -39,17 +39,12 @@ class LitUNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['heatmaps'].float()
         outputs = self.model(inputs)
-        num_landmarks, width, height = outputs.shape[1], outputs.shape[2], outputs.shape[3]
-        outputs = outputs.view(-1, num_landmarks, width*height)
-        # outputs = nn.Softmax(dim=-1)(outputs)
         # import cv2
         # import numpy as np
         # cv2.imshow('img', cv2.cvtColor((batch['img'][0]*255).cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
-        # for idx in range(num_landmarks):
-        #     anno = targets[0][idx].cpu().numpy().reshape(width, height)
-        #     anno = cv2.normalize(anno[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
-        #     pred = outputs[0][idx].cpu().numpy().reshape(width, height)
-        #     pred = cv2.normalize(pred[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+        # for idx in range(outputs.shape[1]):
+        #     anno = cv2.normalize(targets[0][idx].cpu().numpy()[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+        #     pred = cv2.normalize(outputs[0][idx].cpu().numpy()[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
         #     cv2.imshow('anno'+str(idx), anno)
         #     cv2.imshow('pred'+str(idx), pred)
         #     cv2.waitKey(0)
