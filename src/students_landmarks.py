@@ -60,7 +60,7 @@ class StudentsLandmarks(Alignment):
         self.gpus = args.gpu
         self.device = torch.device('cuda' if mode_gpu else 'cpu')
         self.backbone = Backbone(args.backbone)
-        self.version = 50 if self.backbone is Backbone.RESNET else 34 if self.backbone is Backbone.UNET else 0
+        self.version = 50 if self.backbone is Backbone.RESNET else 18 if self.backbone is Backbone.UNET else 0
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
@@ -146,7 +146,7 @@ class StudentsLandmarks(Alignment):
                     width, height = outputs.shape[2], outputs.shape[3]
                     # import torch.nn as nn
                     # outputs = outputs.view(-1, len(self.indices), width*height)
-                    # outputs = nn.Sigmoid()(outputs)
+                    # outputs = nn.Softmax(dim=2)(outputs)
                     heatmaps = outputs.squeeze().cpu().numpy()
                     landmarks = [cv2.minMaxLoc(heatmaps[idx].reshape(width, height))[3] for idx in range(len(self.indices))]
                     # cv2.imshow('img', cv2.cvtColor((batch['img']*255).squeeze().cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))

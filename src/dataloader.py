@@ -59,11 +59,11 @@ class MyDataset(Dataset):
         if self.mode is Mode.TRAIN:
             ops = [Illumination((0.1, 0.2, 0.2)), CropBbox(self.width, self.height, 0.3), ImgPermute()]
             if self.backbone.value in ['unet']:
-                ops.append(Heatmaps())
+                ops.append(Heatmaps(1.0))
         elif self.mode == Mode.VALID:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
             if self.backbone.value in ['unet']:
-                ops.append(Heatmaps())
+                ops.append(Heatmaps(1.0))
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)

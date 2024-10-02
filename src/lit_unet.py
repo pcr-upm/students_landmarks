@@ -14,6 +14,8 @@ class LitUNet(pl.LightningModule):
     """
     Pytorch Lightning wrapper to the UNet network
     """
+    resnets = {18: 'resnet18', 34: 'resnet34', 50: 'resnet50'}
+
     def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
@@ -21,9 +23,9 @@ class LitUNet(pl.LightningModule):
         self.patience = patience
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.L1Loss()
+        self.loss_fn = nn.MSELoss()
         # Using a UNet architecture
-        self.model = smp.Unet(encoder_name='resnet'+str(version), encoder_weights='imagenet' if transfer else None, in_channels=3, classes=num_classes)
+        self.model = smp.Unet(encoder_name=self.resnets[version], encoder_weights='imagenet' if transfer else None, in_channels=3, classes=num_classes)
 
     def forward(self, x):
         return self.model(x)
@@ -39,7 +41,7 @@ class LitUNet(pl.LightningModule):
         outputs = self.model(inputs)
         num_landmarks, width, height = outputs.shape[1], outputs.shape[2], outputs.shape[3]
         outputs = outputs.view(-1, num_landmarks, width*height)
-        # outputs = nn.Sigmoid()(outputs)
+        outputs = nn.Softmax(dim=2)(outputs)
         # import cv2
         # import numpy as np
         # cv2.imshow('img', cv2.cvtColor((batch['img'][0]*255).cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))

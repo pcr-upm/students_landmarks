@@ -6,6 +6,7 @@ __email__ = 'roberto.valle@upm.es'
 import cv2
 import torch
 import numpy as np
+from scipy.ndimage import gaussian_filter
 
 
 class Illumination:
@@ -80,6 +81,9 @@ class ImgPermute:
 
 
 class Heatmaps:
+    def __init__(self, sigma):
+        self.sigma = sigma
+
     def __call__(self, sample):
         # Heatmap generation
         _, height, width = sample['img'].shape
@@ -90,5 +94,7 @@ class Heatmaps:
             y = 0 if y < 0 else height-1 if y > height-1 else y
             heatmap = np.zeros(shape=(width, height), dtype=float)
             heatmap[y, x] = 1.0
+            # Apply gaussian filter to the ground-truth
+            heatmap = gaussian_filter(heatmap, sigma=self.sigma)
             sample['heatmaps'][idx] = heatmap.reshape(width*height)
         return sample
