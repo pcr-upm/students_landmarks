@@ -21,7 +21,7 @@ class LitUNet(pl.LightningModule):
         self.patience = patience
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.BCEWithLogitsLoss()
+        self.loss_fn = nn.L1Loss()
         # Using a UNet architecture
         self.model = smp.Unet(encoder_name='resnet'+str(version), encoder_weights='imagenet' if transfer else None, in_channels=3, classes=num_classes)
 
@@ -39,14 +39,15 @@ class LitUNet(pl.LightningModule):
         outputs = self.model(inputs)
         num_landmarks, width, height = outputs.shape[1], outputs.shape[2], outputs.shape[3]
         outputs = outputs.view(-1, num_landmarks, width*height)
-        # outputs = nn.Softmax(dim=2)(outputs)
+        # outputs = nn.Sigmoid()(outputs)
         # import cv2
         # import numpy as np
+        # cv2.imshow('img', cv2.cvtColor((batch['img'][0]*255).cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
         # for idx in range(num_landmarks):
-        #     anno = targets[0][idx].cpu().numpy().reshape(width, height)*255
-        #     pred = outputs[0][idx].cpu().numpy().reshape(width, height)*255
-        #     cv2.imshow('anno'+str(idx), anno[:, :, np.newaxis])
-        #     cv2.imshow('pred'+str(idx), pred[:, :, np.newaxis])
+        #     anno = targets[0][idx].cpu().numpy().reshape(width, height)
+        #     pred = outputs[0][idx].cpu().numpy().reshape(width, height)
+        #     cv2.imshow('anno'+str(idx), (anno[:, :, np.newaxis]*255).astype('uint8'))
+        #     cv2.imshow('pred'+str(idx), (pred[:, :, np.newaxis]*255).astype('uint8'))
         #     cv2.waitKey(0)
         loss = self.loss_fn(outputs, targets)
         return loss

@@ -109,7 +109,7 @@ class StudentsLandmarks(Alignment):
         if self.backbone is Backbone.RESNET:
             self.model = LitResNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.UNET:
-            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-2, patience=self.patience, batch_size=self.batch_size, transfer=True)
+            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True)
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
@@ -144,15 +144,17 @@ class StudentsLandmarks(Alignment):
                     landmarks = outputs.squeeze().cpu().numpy()
                 elif self.backbone is Backbone.UNET:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
                     width, height = outputs.shape[2], outputs.shape[3]
+                    # import torch.nn as nn
                     # outputs = outputs.view(-1, len(self.indices), width*height)
                     # outputs = nn.Sigmoid()(outputs)
                     heatmaps = outputs.squeeze().cpu().numpy()
+                    landmarks = [cv2.minMaxLoc(heatmaps[idx].reshape(width, height))[3] for idx in range(len(self.indices))]
                     # cv2.imshow('img', cv2.cvtColor((batch['img']*255).squeeze().cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
                     # for idx in range(len(self.indices)):
-                    #     pred = heatmaps[idx].reshape(width, height)
-                    #     cv2.imshow('pred'+str(idx), (pred[:, :, np.newaxis]*255).astype('uint8'))
+                    #     pred = (heatmaps[idx].reshape(width, height)[:, :, np.newaxis]*255).astype('uint8')
+                    #     cv2.circle(pred, landmarks[idx], 3, (0, 0, 0), -1)
+                    #     cv2.imshow('pred'+str(idx), pred)
                     #     cv2.waitKey(0)
-                    landmarks = [cv2.minMaxLoc(heatmaps[idx].reshape(width, height))[3] for idx in range(len(self.indices))]
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
                 bbox_enlarged = batch['bbox_enlarged'].squeeze().cpu().numpy()
