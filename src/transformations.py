@@ -95,6 +95,6 @@ class Heatmaps:
             heatmap = np.zeros(shape=(width, height), dtype=float)
             heatmap[y, x] = 1.0
             # Apply gaussian filter to the ground-truth
-            heatmap = gaussian_filter(heatmap, sigma=self.sigma)
+            # heatmap = gaussian_filter(heatmap, sigma=self.sigma)
             sample['heatmaps'][idx] = heatmap.reshape(width*height)
         return sample
