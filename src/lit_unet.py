@@ -23,9 +23,10 @@ class LitUNet(pl.LightningModule):
         self.patience = patience
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.BCEWithLogitsLoss()
         # Using a UNet architecture
-        self.model = smp.Unet(encoder_name=self.resnets[version], encoder_weights='imagenet' if transfer else None, in_channels=3, classes=num_classes)
+        self.model = smp.Unet(encoder_name=self.resnets[version], encoder_weights='imagenet' if transfer else None, decoder_channels=list([256, 128, 64, 64, 64]), in_channels=3)
+        self.model.segmentation_head = nn.Sequential(nn.Conv2d(64, num_classes, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), nn.Flatten(start_dim=2, end_dim=3))
 
     def forward(self, x):
         return self.model(x)
@@ -39,16 +40,22 @@ class LitUNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['heatmaps'].float()
         outputs = self.model(inputs)
-        # import cv2
-        # import numpy as np
-        # cv2.imshow('img', cv2.cvtColor((batch['img'][0]*255).cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
-        # for idx in range(outputs.shape[1]):
-        #     anno = cv2.normalize(targets[0][idx].cpu().numpy()[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
-        #     pred = cv2.normalize(outputs[0][idx].cpu().numpy()[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
-        #     cv2.imshow('anno'+str(idx), anno)
-        #     cv2.imshow('pred'+str(idx), pred)
-        #     cv2.waitKey(0)
         loss = self.loss_fn(outputs, targets)
+        # import cv2
+        # import torch
+        # import numpy as np
+        # with torch.no_grad():
+        #     cv2.imshow('img', cv2.cvtColor((batch['img'][0]*255).cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
+        #     for idx in range(outputs.shape[1]):
+        #         anno_tensor = torch.unflatten(targets[0][idx], 0, (256, 256))
+        #         pred_tensor = torch.unflatten(torch.sigmoid(outputs[0][idx]), 0, (256, 256))
+        #         anno = cv2.normalize(anno_tensor.cpu().numpy()[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+        #         pred = cv2.normalize(pred_tensor.cpu().numpy()[:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+        #         cv2.circle(anno, cv2.minMaxLoc(anno)[3], 5, (255, 255, 255))
+        #         cv2.circle(pred, cv2.minMaxLoc(pred)[3], 5, (255, 255, 255))
+        #         cv2.imshow('anno'+str(idx), anno)
+        #         cv2.imshow('pred'+str(idx), pred)
+        #         cv2.waitKey(0)
         return loss
 
     def training_step(self, batch, batch_idx):

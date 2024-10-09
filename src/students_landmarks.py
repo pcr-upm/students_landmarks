@@ -113,7 +113,7 @@ class StudentsLandmarks(Alignment):
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
-        torchinfo.summary(self.model, input_size=(self.batch_size, 3, self.width, self.height), device=self.device.type, col_names=['input_size', 'output_size', 'num_params', 'kernel_size'])
+        torchinfo.summary(self.model, input_size=(self.batch_size, 3, self.width, self.height), depth=5, device=self.device.type, col_names=['input_size', 'output_size', 'num_params', 'kernel_size'])
         # Set up the neural network to test
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
