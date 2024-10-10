@@ -26,9 +26,8 @@ class LitResNet(pl.LightningModule):
         self.loss_fn = nn.L1Loss()
         # Using a pretrained ResNet backbone
         self.model = self.resnets[version](pretrained=transfer)
-        # Replace old FC layer with Identity, so we can train our own
+        # Replace final layer
         linear_size = list(self.model.children())[-1].in_features
-        # Replace final layer for fine-tuning
         self.model.fc = nn.Linear(in_features=linear_size, out_features=num_classes*2)
         # Option to only tune the fully-connected layers
         if tune_fc_only:

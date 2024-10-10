@@ -24,9 +24,10 @@ class LitUNet(pl.LightningModule):
         self.patience = patience
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([65535]))
-        # Using a UNet architecture
-        self.model = smp.Unet(encoder_name=self.resnets[version], encoder_weights='imagenet' if transfer else None, in_channels=3)
+        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([(256*256)-1]))
+        # Using a pretrained UNet architecture
+        self.model = smp.Unet(encoder_name=self.resnets[version], encoder_weights='imagenet' if transfer else None, decoder_channels=list([256, 128, 64, 64, 64]), in_channels=3)
+        # Replace final layer
         self.model.segmentation_head = nn.Sequential(nn.Conv2d(64, num_classes, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), nn.Flatten(start_dim=2, end_dim=3))
 
     def forward(self, x):
