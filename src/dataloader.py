@@ -17,12 +17,36 @@ class Mode(Enum):
     TEST = 'test'
 
 
+class Regressor(Enum):
+    ENCODER = 'encoder'
+    UNET = 'unet'
+
+
+class Backbone(Enum):
+    RESNET18 = 'resnet18'
+    RESNET34 = 'resnet34'
+    RESNET50 = 'resnet50'
+    RESNET101 = 'resnet101'
+    RESNET152 = 'resnet152'
+    EFFICIENTNETB0 = 'efficientnet-b0'
+    EFFICIENTNETB1 = 'efficientnet-b1'
+    EFFICIENTNETB2 = 'efficientnet-b2'
+    EFFICIENTNETB3 = 'efficientnet-b3'
+    EFFICIENTNETB4 = 'efficientnet-b4'
+    EFFICIENTNETB5 = 'efficientnet-b5'
+    EFFICIENTNETB6 = 'efficientnet-b6'
+    EFFICIENTNETB7 = 'efficientnet-b7'
+    VITB = 'vit-base'
+    VITL = 'vit-large'
+    VITH = 'vit-huge'
+
+
 class MyDataset(Dataset):
     """
     Create a dataset class for our face landmarks data sets.
     """
-    def __init__(self, anns, indices, backbone, width, height, mode: Mode):
-        self.backbone = backbone
+    def __init__(self, anns, indices, regressor, width, height, mode: Mode):
+        self.regressor = regressor
         self.indices = indices
         self.width = width
         self.height = height
@@ -58,11 +82,11 @@ class MyDataset(Dataset):
         # Composes several transforms together
         if self.mode is Mode.TRAIN:
             ops = [Illumination((0.1, 0.2, 0.2)), CropBbox(self.width, self.height, 0.3), ImgPermute()]
-            if self.backbone.value in ['unet']:
+            if self.regressor is Regressor.UNET:
                 ops.append(Heatmaps(1.0))
         elif self.mode == Mode.VALID:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
-            if self.backbone.value in ['unet']:
+            if self.regressor is Regressor.UNET:
                 ops.append(Heatmaps(1.0))
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]

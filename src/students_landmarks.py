@@ -6,18 +6,12 @@ __email__ = 'roberto.valle@upm.es'
 import os
 import torch
 import numpy as np
-from enum import Enum
 from torch.utils.data import DataLoader
 from images_framework.src.alignment import Alignment
 from images_framework.alignment.students_landmarks.src.pcrlogger import PCRLogger
-from images_framework.alignment.students_landmarks.src.dataloader import MyDataset, Mode
+from images_framework.alignment.students_landmarks.src.dataloader import Mode, Regressor, Backbone, MyDataset
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
-
-
-class Backbone(Enum):
-    RESNET = 'resnet'
-    UNET = 'unet'
 
 
 class StudentsLandmarks(Alignment):
@@ -30,9 +24,9 @@ class StudentsLandmarks(Alignment):
         self.model = None
         self.gpus = None
         self.device = None
+        self.regressor = None
         self.backbone = None
         self.indices = None
-        self.version = None
         self.batch_size = None
         self.epochs = None
         self.patience = None
@@ -46,8 +40,10 @@ class StudentsLandmarks(Alignment):
         parser = argparse.ArgumentParser(prog='StudentsLandmarks', add_help=False)
         parser.add_argument('--gpu', dest='gpu', type=int, action='append',
                             help='GPU ID (negative value indicates CPU).')
+        parser.add_argument('--regressor', dest='regressor', required=True, choices=[x.value for x in Regressor],
+                            help='Select regressor model.')
         parser.add_argument('--backbone', dest='backbone', required=True, choices=[x.value for x in Backbone],
-                            help='Select backbone model.')
+                            help='Select backbone architecture.')
         parser.add_argument('--batch-size', dest='batch_size', type=int, default=8,
                             help='Number of images in each mini-batch.')
         parser.add_argument('--epochs', dest='epochs', type=int, default=200,
@@ -59,8 +55,8 @@ class StudentsLandmarks(Alignment):
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
         self.gpus = args.gpu
         self.device = torch.device('cuda' if mode_gpu else 'cpu')
+        self.regressor = Regressor(args.regressor)
         self.backbone = Backbone(args.backbone)
-        self.version = 50 if self.backbone is Backbone.RESNET else 34 if self.backbone is Backbone.UNET else 0
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
@@ -85,15 +81,15 @@ class StudentsLandmarks(Alignment):
         from pytorch_lightning import loggers as pl_loggers
         from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
         # Prepare dataloaders
-        dataset_train = MyDataset(anns_train, self.indices, self.backbone, self.width, self.height, Mode.TRAIN)
-        dataset_valid = MyDataset(anns_valid, self.indices, self.backbone, self.width, self.height, Mode.VALID)
+        dataset_train = MyDataset(anns_train, self.indices, self.regressor, self.width, self.height, Mode.TRAIN)
+        dataset_valid = MyDataset(anns_valid, self.indices, self.regressor, self.width, self.height, Mode.VALID)
         drop_last = (len(dataset_train) % self.batch_size) == 1  # discard a last iteration with a single sample
         dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=drop_last)
         dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         # Train the model
         print('Train model')
         accelerator = 'gpu' if 'cuda' in str(self.device) else 'cpu'
-        model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
+        model_path = self.path + 'data/' + self.database + '/' + self.regressor.value + '/' + self.backbone.value + '/'
         ckpt_path = os.path.join(model_path+'ckpt/', 'last.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/', default_hp_metric=False), PCRLogger()]
         early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
@@ -104,27 +100,23 @@ class StudentsLandmarks(Alignment):
     def load(self, mode):
         import torchinfo
         from images_framework.src.constants import Modes
-        from images_framework.alignment.students_landmarks.src.lit_resnet import LitResNet
+        from images_framework.alignment.students_landmarks.src.lit_encoder import LitEncoder
         from images_framework.alignment.students_landmarks.src.lit_unet import LitUNet
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
-        if self.backbone is Backbone.RESNET:
-            self.model = LitResNet(num_classes=len(self.indices), version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
-        elif self.backbone is Backbone.UNET:
-            self.model = LitUNet(num_classes=len(self.indices), version=self.version, lr=1e-2, patience=self.patience, batch_size=self.batch_size, transfer=True)
-        else:
-            raise ValueError('Backbone is not implemented')
+        common_params = {'num_classes': len(self.indices), 'backbone': self.backbone, 'lr': 1e-3, 'patience': self.patience, 'batch_size': self.batch_size, 'transfer': True, 'tune_fc_only': False}
+        regressors = {Regressor.ENCODER: LitEncoder, Regressor.UNET: LitUNet}
+        ModelClass = regressors[self.regressor]
+        self.model = ModelClass(**common_params)
         self.model.to(self.device)
         torchinfo.summary(self.model, input_size=(self.batch_size, 3, self.width, self.height), depth=5, device=self.device.type, col_names=['input_size', 'output_size', 'num_params', 'kernel_size'])
         # Set up the neural network to test
         if mode is Modes.TEST:
-            model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
+            model_path = self.path + 'data/' + self.database + '/' + self.regressor.value + '/' + self.backbone.value + '/'
             print('Loading model from {}'.format(model_path))
-            if self.backbone is Backbone.RESNET:
-                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
-            elif self.backbone is Backbone.UNET:
-                self.model = LitUNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'), num_classes=len(self.indices), version=self.version)
+            self.model = ModelClass.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=len(self.indices), backbone=self.backbone)
+            self.model.to(self.device)
             self.model.eval()
 
     def process(self, ann, pred):
@@ -136,16 +128,16 @@ class StudentsLandmarks(Alignment):
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()
         # Prepare dataloader
-        dataset_test = MyDataset([pred], self.indices, self.backbone, self.width, self.height, Mode.TEST)
+        dataset_test = MyDataset([pred], self.indices, self.regressor, self.width, self.height, Mode.TEST)
         dl_test = DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
                 outputs = self.model(batch['img'].float().to(self.device))
-                if self.backbone is Backbone.RESNET:  # [batch_size, num_landmarks*2]
+                if self.regressor is Regressor.ENCODER:  # [batch_size, num_landmarks*2]
                     outputs = outputs.view(-1, len(self.indices), 2)
                     landmarks = outputs.squeeze().cpu().numpy()
-                elif self.backbone is Backbone.UNET:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
+                elif self.regressor is Regressor.UNET:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
                     heatmaps = torch.unflatten(torch.sigmoid(outputs[0]), 1, (self.width, self.height)).squeeze().cpu().numpy()
                     landmarks = [cv2.minMaxLoc(heatmaps[idx])[3] for idx in range(len(self.indices))]
                     # cv2.imshow('img', cv2.cvtColor((batch['img']*255).squeeze().cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))

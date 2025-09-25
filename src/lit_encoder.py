@@ -8,15 +8,33 @@ import pytorch_lightning as pl
 import torchvision.models as models
 from torch.optim import SGD
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from images_framework.alignment.students_landmarks.src.dataloader import Backbone
 
 
-class LitResNet(pl.LightningModule):
+class LitEncoder(pl.LightningModule):
     """
-    Define a new class to turn the ResNet model that we want to use as a feature extractor.
+    Pytorch Lightning wrapper to turn an encoder into a coordinates regressor.
     """
-    resnets = {18: models.resnet18, 34: models.resnet34, 50: models.resnet50, 101: models.resnet101, 152: models.resnet152}
+    encoders = {
+        Backbone.RESNET18: models.resnet18, 
+        Backbone.RESNET34: models.resnet34, 
+        Backbone.RESNET50: models.resnet50, 
+        Backbone.RESNET101: models.resnet101, 
+        Backbone.RESNET152: models.resnet152,
+        Backbone.EFFICIENTNETB0: models.efficientnet_b0,
+        Backbone.EFFICIENTNETB1: models.efficientnet_b1,
+        Backbone.EFFICIENTNETB2: models.efficientnet_b2,
+        Backbone.EFFICIENTNETB3: models.efficientnet_b3,
+        Backbone.EFFICIENTNETB4: models.efficientnet_b4,
+        Backbone.EFFICIENTNETB5: models.efficientnet_b5,
+        Backbone.EFFICIENTNETB6: models.efficientnet_b6,
+        Backbone.EFFICIENTNETB7: models.efficientnet_b7,
+        Backbone.VITB: models.vit_b_16,
+        Backbone.VITL: models.vit_l_16,
+        Backbone.VITH: models.vit_h_14
+    }
 
-    def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
+    def __init__(self, num_classes, backbone, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
         self.lr = lr
@@ -24,8 +42,8 @@ class LitResNet(pl.LightningModule):
         self.batch_size = batch_size
         # Loss criterion
         self.loss_fn = nn.L1Loss()
-        # Using a pretrained ResNet backbone
-        self.model = self.resnets[version](pretrained=transfer)
+        # Ecnoder architecture
+        self.model = self.encoders[backbone](pretrained=transfer)
         # Replace final layer
         linear_size = list(self.model.children())[-1].in_features
         self.model.fc = nn.Linear(in_features=linear_size, out_features=num_classes*2)
