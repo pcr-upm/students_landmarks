@@ -3,7 +3,7 @@ echo 'Using Docker to start the container and run tests ...'
 sudo docker build --force-rm --build-arg SSH_PRIVATE_KEY="$(cat ~/.ssh/id_rsa)" -t students_landmarks_image .
 sudo docker volume create --name students_landmarks_volume
 sudo docker run --name students_landmarks_container -v students_landmarks_volume:/home/username --rm --gpus all -it -d students_landmarks_image bash
-sudo docker exec -w /home/username/ students_landmarks_container python images_framework/alignment/students_landmarks/test/students_landmarks_test.py --input-data images_framework/alignment/students_landmarks/test/example.tif --database wflw --gpu 0 --backbone resnet --save-image
+sudo docker exec -w /home/username/ students_landmarks_container python images_framework/alignment/students_landmarks/test/students_landmarks_test.py --input-data images_framework/alignment/students_landmarks/test/example.tif --database wflw --gpu 0 --regressor encoder --backbone resnet50 --save-image
 sudo docker stop students_landmarks_container
 echo 'Transferring data from docker container to your local machine ...'
 mkdir -p output

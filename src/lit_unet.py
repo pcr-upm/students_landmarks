@@ -16,11 +16,10 @@ class LitUNet(pl.LightningModule):
     """
     Pytorch Lightning wrapper to turn an encoder-decoder into a heatmap regressor.
     """
-    def __init__(self, num_classes, backbone, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
+    def __init__(self, num_classes, backbone, epochs=200, batch_size=16, transfer=True, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
-        self.lr = lr
-        self.patience = patience
+        self.epochs = epochs
         self.batch_size = batch_size
         # Loss criterion
         self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([(256*256)-1]))
@@ -33,8 +32,8 @@ class LitUNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        opt = SGD(self.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-6, nesterov=True)
-        scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=int(round(self.patience/4)))
+        opt = SGD(self.parameters(), lr=1e-3, momentum=0.9, weight_decay=1e-6, nesterov=True)
+        scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=5)
         return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
 
     def _step(self, batch):

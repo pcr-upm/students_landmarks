@@ -57,6 +57,8 @@ class StudentsLandmarks(Alignment):
         self.device = torch.device('cuda' if mode_gpu else 'cpu')
         self.regressor = Regressor(args.regressor)
         self.backbone = Backbone(args.backbone)
+        if self.regressor is Regressor.ENCODER and self.backbone in [Backbone.VITB, Backbone.VITL]:
+            self.width, self.height = 224, 224
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
@@ -106,7 +108,7 @@ class StudentsLandmarks(Alignment):
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
-        common_params = {'num_classes': len(self.indices), 'backbone': self.backbone, 'lr': 1e-3, 'patience': self.patience, 'batch_size': self.batch_size, 'transfer': True, 'tune_fc_only': False}
+        common_params = {'num_classes': len(self.indices), 'backbone': self.backbone, 'epochs': self.epochs, 'batch_size': self.batch_size, 'transfer': True, 'tune_fc_only': False}
         regressors = {Regressor.ENCODER: LitEncoder, Regressor.UNET: LitUNet}
         ModelClass = regressors[self.regressor]
         self.model = ModelClass(**common_params)
