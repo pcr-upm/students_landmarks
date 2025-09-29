@@ -31,8 +31,8 @@ class StudentsLandmarks(Alignment):
         self.epochs = None
         self.patience = None
         self.order = None
-        self.width = 256
-        self.height = 256
+        self.width = None
+        self.height = None
 
     def parse_options(self, params):
         unknown = super().parse_options(params)
@@ -46,7 +46,7 @@ class StudentsLandmarks(Alignment):
                             help='Select backbone architecture.')
         parser.add_argument('--batch-size', dest='batch_size', type=int, default=8,
                             help='Number of images in each mini-batch.')
-        parser.add_argument('--epochs', dest='epochs', type=int, default=200,
+        parser.add_argument('--epochs', dest='epochs', type=int, default=100,
                             help='Number of sweeps over the dataset to train.')
         parser.add_argument('--patience', dest='patience', type=int, default=20,
                             help='Number of epochs with no improvement after which training will be stopped.')
@@ -57,11 +57,10 @@ class StudentsLandmarks(Alignment):
         self.device = torch.device('cuda' if mode_gpu else 'cpu')
         self.regressor = Regressor(args.regressor)
         self.backbone = Backbone(args.backbone)
-        if self.regressor is Regressor.ENCODER and self.backbone in [Backbone.VITB, Backbone.VITL]:
-            self.width, self.height = 224, 224
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
+        self.width, self.height = (224, 224) if self.regressor is Regressor.ENCODER and self.backbone in [Backbone.VITB, Backbone.VITL] else (256, 256)
         if self.database in ['300w_public', '300w_private', '300wlp']:
             self.indices = [101, 102, 103, 104, 105, 106, 107, 108, 24, 110, 111, 112, 113, 114, 115, 116, 117, 1, 119, 2, 121, 3, 4, 124, 5, 126, 6, 128, 129, 130, 17, 16, 133, 134, 135, 18, 7, 138, 139, 8, 141, 142, 11, 144, 145, 12, 147, 148, 20, 150, 151, 22, 153, 154, 21, 156, 157, 23, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168]
         elif self.database in 'cofw':

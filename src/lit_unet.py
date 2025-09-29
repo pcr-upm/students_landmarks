@@ -7,8 +7,8 @@ import torch
 import torch.nn as nn
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
-from torch.optim import SGD
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from images_framework.alignment.students_landmarks.src.dataloader import Backbone
 
 
@@ -16,7 +16,7 @@ class LitUNet(pl.LightningModule):
     """
     Pytorch Lightning wrapper to turn an encoder-decoder into a heatmap regressor.
     """
-    def __init__(self, num_classes, backbone, epochs=200, batch_size=16, transfer=True, tune_fc_only=True):
+    def __init__(self, num_classes, backbone, epochs=100, batch_size=16, transfer=True, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
         self.epochs = epochs
@@ -24,7 +24,7 @@ class LitUNet(pl.LightningModule):
         # Loss criterion
         self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([(256*256)-1]))
         # Using a pretrained UNet architecture
-        self.model = smp.Unet(encoder_name='mit_b2' if backbone in [Backbone.VITB, Backbone.VITL, Backbone.VITH] else backbone.value, encoder_weights='imagenet' if transfer else None, decoder_channels=list([256, 128, 64, 64, 64]), in_channels=3)
+        self.model = smp.Unet(encoder_name='mit_b2' if backbone in [Backbone.VITB, Backbone.VITL] else backbone.value, encoder_weights='imagenet' if transfer else None, decoder_channels=list([256, 128, 64, 64, 64]), in_channels=3)
         # Replace final layer
         self.model.segmentation_head = nn.Sequential(nn.Conv2d(64, num_classes, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), nn.Flatten(start_dim=2, end_dim=3))
 
@@ -32,9 +32,9 @@ class LitUNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        opt = SGD(self.parameters(), lr=1e-3, momentum=0.9, weight_decay=1e-6, nesterov=True)
-        scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=5)
-        return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
+        opt = AdamW(self.parameters(), lr=3e-4 , weight_decay=0.05)
+        scheduler = CosineAnnealingLR(opt, T_max=self.epochs)
+        return {'optimizer': opt, 'lr_scheduler': scheduler}
 
     def _step(self, batch):
         inputs = batch['img'].float()
