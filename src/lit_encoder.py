@@ -5,7 +5,7 @@ __email__ = 'roberto.valle@upm.es'
 
 import torch
 import torch.nn as nn
-
+import torchvision.models as models
 import pytorch_lightning as pl
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -14,7 +14,7 @@ from images_framework.alignment.students_landmarks.src.dataloader import Backbon
 
 class ViTRegressor(nn.Module):
     """
-    ViT -> average pooled patch tokens -> small MLP -> coords
+    ViT -> MLP -> coords
     """
     def __init__(self, vit_model, num_classes):
         super().__init__()
@@ -23,21 +23,27 @@ class ViTRegressor(nn.Module):
         self.vit = vit_model
         self.regressor = nn.Sequential(
             nn.LayerNorm(embed_dim),
-            nn.Linear(embed_dim, 512),
-            nn.ReLU(),
+            nn.Linear(embed_dim, 1024),
+            nn.GELU(),
+            nn.Dropout(0.3),
+            nn.Linear(1024, 512),
+            nn.GELU(),
+            nn.Dropout(0.3),
             nn.Linear(512, num_classes*2)
         )
 
     def forward(self, x):
-        tokens = self.vit._process_input(x)
-        cls_token = self.vit.class_token.expand(tokens.shape[0], -1, -1)
-        tokens = torch.cat((cls_token, tokens), dim=1) # [batch_size, tokens+1, embed_dim]
-        tokens = tokens + self.vit.encoder.pos_embedding
-        tokens = self.vit.encoder.dropout(tokens)
-        tokens = self.vit.encoder.layers(tokens)
-        tokens = self.vit.encoder.ln(tokens) 
-        patch_tokens = tokens[:, 1:, :] # quitamos token CLS
-        pooled = patch_tokens.mean(dim=1) # [batch_size, embed_dim]
+        # Patchify + cls + pos embedding
+        x = self.vit._process_input(x) # [batch_size, tokens, embed_dim]
+        # Añadir class token y positional embedding
+        cls_token = self.vit.class_token.expand(x.shape[0], -1, -1)
+        x = torch.cat([cls_token, x], dim=1) # [batch_size, tokens+1, embed_dim]
+        x = x + self.vit.encoder.pos_embedding
+        x = self.vit.encoder.dropout(x)
+        # Pasar por el encoder
+        x = self.vit.encoder.layers(x)
+        x = self.vit.encoder.ln(x)
+        pooled = x.mean(dim=1) # [batch_size, embed_dim]
         return self.regressor(pooled)
 
 

@@ -32,7 +32,7 @@ class LitUNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        opt = AdamW(self.parameters(), lr=3e-4 , weight_decay=0.05)
+        opt = AdamW(self.parameters(), lr=3e-5, weight_decay=0.05)
         scheduler = CosineAnnealingLR(opt, T_max=self.epochs)
         return {'optimizer': opt, 'lr_scheduler': scheduler}
 
