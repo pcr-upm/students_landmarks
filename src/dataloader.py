@@ -90,4 +90,8 @@ class MyDataset(Dataset):
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
+        # Normalize landmarks between [0,1]
+        if self.mode != Mode.TEST and sample['landmarks'].size > 0:
+            sample['landmarks'][:, 0] /= float(self.width)
+            sample['landmarks'][:, 1] /= float(self.height)
         return sample

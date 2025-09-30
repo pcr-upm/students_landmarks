@@ -139,6 +139,8 @@ class StudentsLandmarks(Alignment):
                 if self.regressor is Regressor.ENCODER:  # [batch_size, num_landmarks*2]
                     outputs = outputs.view(-1, len(self.indices), 2)
                     landmarks = outputs.squeeze().cpu().numpy()
+                    landmarks[:, 0] *= float(self.width)
+                    landmarks[:, 1] *= float(self.height)
                 elif self.regressor is Regressor.UNET:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
                     heatmaps = torch.unflatten(torch.sigmoid(outputs[0]), 1, (self.width, self.height)).squeeze().cpu().numpy()
                     landmarks = [cv2.minMaxLoc(heatmaps[idx])[3] for idx in range(len(self.indices))]
