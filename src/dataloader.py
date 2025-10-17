@@ -36,8 +36,7 @@ class Backbone(Enum):
     EFFICIENTNETB5 = 'efficientnet-b5'
     EFFICIENTNETB6 = 'efficientnet-b6'
     EFFICIENTNETB7 = 'efficientnet-b7'
-    VITB = 'vit-base'
-    VITL = 'vit-large'
+    VIT = 'vit'
 
 
 class MyDataset(Dataset):

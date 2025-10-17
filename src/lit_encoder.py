@@ -3,48 +3,12 @@
 __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
-import torch
 import torch.nn as nn
 import torchvision.models as models
 import pytorch_lightning as pl
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from images_framework.alignment.students_landmarks.src.dataloader import Backbone
-
-
-class ViTRegressor(nn.Module):
-    """
-    ViT -> MLP -> coords
-    """
-    def __init__(self, vit_model, num_classes):
-        super().__init__()
-        embed_dim = vit_model.heads.head.in_features
-        vit_model.heads = nn.Identity()
-        self.vit = vit_model
-        self.regressor = nn.Sequential(
-            nn.LayerNorm(embed_dim),
-            nn.Linear(embed_dim, 1024),
-            nn.GELU(),
-            nn.Dropout(0.3),
-            nn.Linear(1024, 512),
-            nn.GELU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, num_classes*2)
-        )
-
-    def forward(self, x):
-        # Patchify + cls + pos embedding
-        x = self.vit._process_input(x) # [batch_size, tokens, embed_dim]
-        # Añadir class token y positional embedding
-        cls_token = self.vit.class_token.expand(x.shape[0], -1, -1)
-        x = torch.cat([cls_token, x], dim=1) # [batch_size, tokens+1, embed_dim]
-        x = x + self.vit.encoder.pos_embedding
-        x = self.vit.encoder.dropout(x)
-        # Pasar por el encoder
-        x = self.vit.encoder.layers(x)
-        x = self.vit.encoder.ln(x)
-        pooled = x.mean(dim=1) # [batch_size, embed_dim]
-        return self.regressor(pooled)
 
 
 class LitEncoder(pl.LightningModule):
@@ -65,8 +29,7 @@ class LitEncoder(pl.LightningModule):
         Backbone.EFFICIENTNETB5: models.efficientnet_b5,
         Backbone.EFFICIENTNETB6: models.efficientnet_b6,
         Backbone.EFFICIENTNETB7: models.efficientnet_b7,
-        Backbone.VITB: models.vit_b_16,
-        Backbone.VITL: models.vit_l_16
+        Backbone.VIT: models.maxvit_t
     }
 
     def __init__(self, num_classes, backbone, epochs=100, batch_size=16, transfer=True, tune_fc_only=True):
@@ -80,24 +43,21 @@ class LitEncoder(pl.LightningModule):
         self.model = self.encoders[backbone](weights='IMAGENET1K_V1' if transfer else None)
         # Replace final layer
         if backbone in [Backbone.RESNET18, Backbone.RESNET34, Backbone.RESNET50, Backbone.RESNET101, Backbone.RESNET152]:
+            classifier = 'fc'
             linear_size = list(self.model.children())[-1].in_features
             self.model.fc = nn.Linear(in_features=linear_size, out_features=num_classes*2)
-            if tune_fc_only:
-                for name, param in self.model.named_parameters():
-                    if not any(sub in name for sub in ["fc"]):
-                        param.requires_grad = False
         elif backbone in [Backbone.EFFICIENTNETB0, Backbone.EFFICIENTNETB1, Backbone.EFFICIENTNETB2, Backbone.EFFICIENTNETB3, Backbone.EFFICIENTNETB4, Backbone.EFFICIENTNETB5, Backbone.EFFICIENTNETB6, Backbone.EFFICIENTNETB7]:
+            classifier = 'classifier.1'
             linear_size = self.model.classifier[1].in_features
             self.model.classifier[1] = nn.Linear(in_features=linear_size, out_features=num_classes*2)
-            if tune_fc_only:
-                for name, param in self.model.named_parameters():
-                    if not any(sub in name for sub in ["classifier.1"]):
-                        param.requires_grad = False
         else:
-            self.model = ViTRegressor(self.model, num_classes)
-            if tune_fc_only:
-                for p in self.model.vit.parameters():
-                    p.requires_grad = False
+            classifier = 'classifier.5'
+            linear_size = self.model.classifier[5].in_features
+            self.model.classifier[5] = nn.Linear(in_features=linear_size, out_features=num_classes*2)
+        if tune_fc_only:
+            for name, param in self.model.named_parameters():
+                if not any(sub in name for sub in [classifier]):
+                    param.requires_grad = False
 
     def forward(self, x):
         return self.model(x)
