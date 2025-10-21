@@ -74,8 +74,6 @@ class StudentsLandmarks(Alignment):
         elif self.database in 'agora':
             # self.indices = [101, 11, 12, 102, 13, 14, 103, 15, 16, 104, 105, 106, 17, 107, 108, 112, 5, 6, 7, 8, 9, 10, 109, 110, 111]
             self.indices = [4, 124, 5, 126, 6, 1, 119, 2, 121, 3, 128, 129, 130, 17, 16, 133, 134, 135, 18, 11, 144, 145, 12, 147, 148, 7, 138, 139, 8, 141, 142, 20, 150, 151, 22, 153, 154, 21, 165, 164, 163, 162, 161, 156, 157, 23, 159, 160, 168, 167, 166]
-        elif self.database in 'catheads':
-            self.indices = [101, 102, 103, 104, 105, 106, 107, 108, 109]
         else:
             raise ValueError('Database is not implemented')
 
@@ -143,12 +141,12 @@ class StudentsLandmarks(Alignment):
                     landmarks[:, 0] *= float(self.width)
                     landmarks[:, 1] *= float(self.height)
                 elif self.regressor is Regressor.UNET:  # [batch_size, num_landmarks, height_heatmap, width_heatmap]
-                    heatmaps = torch.unflatten(torch.sigmoid(outputs[0]), 1, (self.width, self.height)).squeeze().cpu().numpy()
-                    landmarks = [cv2.minMaxLoc(heatmaps[idx])[3] for idx in range(len(self.indices))]
+                    heatmaps = outputs.squeeze().cpu().numpy()
+                    landmarks = np.array([tuple(np.unravel_index(np.argmax(heatmaps[idx]), heatmaps[idx].shape)[::-1]) for idx in range(len(self.indices))])
                     # cv2.imshow('img', cv2.cvtColor((batch['img']*255).squeeze().cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
                     # for idx in range(len(self.indices)):
                     #     aux = cv2.normalize(heatmaps[idx][:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
-                    #     cv2.circle(aux, landmarks[idx], 3, (0, 0, 0))
+                    #     cv2.circle(aux, landmarks, 3, (0, 0, 0))
                     #     cv2.imshow('pred'+str(idx), aux)
                     #     cv2.waitKey(0)
                 # Save prediction

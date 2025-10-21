@@ -3,7 +3,6 @@
 __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
-import torch
 import torch.nn as nn
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
@@ -22,11 +21,11 @@ class LitUNet(pl.LightningModule):
         self.epochs = epochs
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([(256*256)-1]))
+        self.loss_fn = nn.MSELoss()
         # Using a pretrained UNet architecture
         self.model = smp.Unet(encoder_name='mit_b2' if backbone in [Backbone.VIT] else backbone.value, encoder_weights='imagenet' if transfer else None, decoder_channels=list([256, 128, 64, 64, 64]), in_channels=3)
         # Replace final layer
-        self.model.segmentation_head = nn.Sequential(nn.Conv2d(64, num_classes, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), nn.Flatten(start_dim=2, end_dim=3))
+        self.model.segmentation_head = nn.Conv2d(64, num_classes, kernel_size=(1, 1))
 
     def forward(self, x):
         return self.model(x)
@@ -42,17 +41,21 @@ class LitUNet(pl.LightningModule):
         outputs = self.model(inputs)
         loss = self.loss_fn(outputs, targets)
         # import cv2
+        # import torch
         # import numpy as np
         # with torch.no_grad():
         #     cv2.imshow('img', cv2.cvtColor((batch['img'][0]*255).cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
-        #     anno_heatmaps = torch.unflatten(targets[0], 1, (256, 256)).squeeze().cpu().numpy()
-        #     pred_heatmaps = torch.unflatten(torch.sigmoid(outputs[0]), 1, (256, 256)).squeeze().cpu().numpy()
+        #     anno_heatmaps = targets[0].squeeze().cpu().numpy()
+        #     pred_heatmaps = outputs[0].squeeze().cpu().numpy()
         #     for idx in range(outputs.shape[1]):
-        #         anno = cv2.normalize(anno_heatmaps[idx][:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
-        #         pred = cv2.normalize(pred_heatmaps[idx][:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
-        #         cv2.circle(pred, cv2.minMaxLoc(pred)[3], 3, (0, 0, 0))
-        #         cv2.imshow('anno'+str(idx), anno)
-        #         cv2.imshow('pred'+str(idx), pred)
+        #         anno = tuple(np.unravel_index(np.argmax(anno_heatmaps[idx]), anno_heatmaps[idx].shape)[::-1])
+        #         pred = tuple(np.unravel_index(np.argmax(pred_heatmaps[idx]), pred_heatmaps[idx].shape)[::-1])
+        #         anno_heatmap = cv2.normalize(anno_heatmaps[idx][:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+        #         pred_heatmap = cv2.normalize(pred_heatmaps[idx][:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+        #         cv2.circle(anno_heatmap, anno, 3, (255, 255, 255))
+        #         cv2.circle(pred_heatmap, pred, 3, (255, 255, 255))
+        #         cv2.imshow('anno'+str(idx), anno_heatmap)
+        #         cv2.imshow('pred'+str(idx), pred_heatmap)
         #         cv2.waitKey(0)
         return loss
 

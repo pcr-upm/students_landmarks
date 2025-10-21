@@ -87,14 +87,14 @@ class Heatmaps:
     def __call__(self, sample):
         # Heatmap generation
         _, height, width = sample['img'].shape
-        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), width*height), dtype=float)
+        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), height, width), dtype=float)
         for idx, lnd in enumerate(sample['landmarks']):
             (x, y) = np.array(lnd, dtype=int)[0]
             x = 0 if x < 0 else width-1 if x > width-1 else x
             y = 0 if y < 0 else height-1 if y > height-1 else y
-            heatmap = np.zeros(shape=(width, height), dtype=float)
+            heatmap = np.zeros(shape=(height, width), dtype=float)
             heatmap[y, x] = 1.0
             # Apply gaussian filter to the ground-truth
-            # heatmap = gaussian_filter(heatmap, sigma=self.sigma)
-            sample['heatmaps'][idx] = heatmap.reshape(width*height)
+            heatmap = gaussian_filter(heatmap, sigma=self.sigma)
+            sample['heatmaps'][idx] = heatmap
         return sample
