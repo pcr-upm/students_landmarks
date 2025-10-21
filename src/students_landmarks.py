@@ -146,7 +146,7 @@ class StudentsLandmarks(Alignment):
                     # cv2.imshow('img', cv2.cvtColor((batch['img']*255).squeeze().cpu().numpy().astype('uint8').transpose(1, 2, 0), cv2.COLOR_BGR2RGB))
                     # for idx in range(len(self.indices)):
                     #     aux = cv2.normalize(heatmaps[idx][:, :, np.newaxis], None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
-                    #     cv2.circle(aux, landmarks, 3, (0, 0, 0))
+                    #     cv2.circle(aux, landmarks[idx], 3, (0, 0, 0))
                     #     cv2.imshow('pred'+str(idx), aux)
                     #     cv2.waitKey(0)
                 # Save prediction
