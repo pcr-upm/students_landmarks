@@ -9,13 +9,14 @@ sys.path.append(os.getcwd())
 import cv2
 import copy
 import numpy as np
+import importlib.util
 from tqdm import tqdm
 from pathlib import Path
 from images_framework.src.constants import Modes
 from images_framework.src.datasets import Database
 from images_framework.src.composite import Composite
 from images_framework.src.viewer import Viewer
-from images_framework.alignment.students_landmarks.src.students_landmarks import StudentsLandmarks
+from src.students_landmarks import StudentsLandmarks
 
 
 def parse_options():
@@ -80,19 +81,21 @@ def main():
     unknown, anns_file, show_viewer, save_file, save_image = parse_options()
     # Load computer vision components
     composite = Composite()
-    sa = StudentsLandmarks('images_framework/alignment/students_landmarks/')
+    sa = StudentsLandmarks('')
     composite.add(sa)
 
     composite.parse_options(unknown)
     anns = load_annotations(anns_file)
     composite.load(Modes.TEST)
+    spec = importlib.util.find_spec('images_framework')
+    output_path = os.path.join('images_framework' if spec is None else os.path.dirname(spec.origin), 'output')
     if show_viewer:
         viewer = Viewer('images_viewer')
     if save_file:
-        ofs = open('images_framework/output/results.txt', 'w', encoding='utf-8')
+        ofs = open(output_path+'results.txt', 'w', encoding='utf-8')
     if save_image:
         viewer = Viewer('images_save')
-        dirname = 'images_framework/output/images/'
+        dirname = output_path+'images/'
         Path(dirname).mkdir(parents=True, exist_ok=True)
     for i in tqdm(range(len(anns)), file=sys.stdout):
         pred = copy.deepcopy(anns[i])

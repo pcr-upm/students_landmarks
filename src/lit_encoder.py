@@ -8,7 +8,7 @@ import torchvision.models as models
 import pytorch_lightning as pl
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from images_framework.alignment.students_landmarks.src.dataloader import Backbone
+from src.dataloader import Backbone
 
 
 class LitEncoder(pl.LightningModule):

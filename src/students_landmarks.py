@@ -4,12 +4,14 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from images_framework.src.alignment import Alignment
-from images_framework.alignment.students_landmarks.src.pcrlogger import PCRLogger
-from images_framework.alignment.students_landmarks.src.dataloader import Mode, Regressor, Backbone, MyDataset
+from src.pcrlogger import PCRLogger
+from src.dataloader import Mode, Regressor, Backbone, MyDataset
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
 
@@ -101,8 +103,8 @@ class StudentsLandmarks(Alignment):
     def load(self, mode):
         import torchinfo
         from images_framework.src.constants import Modes
-        from images_framework.alignment.students_landmarks.src.lit_encoder import LitEncoder
-        from images_framework.alignment.students_landmarks.src.lit_unet import LitUNet
+        from src.lit_encoder import LitEncoder
+        from src.lit_unet import LitUNet
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
