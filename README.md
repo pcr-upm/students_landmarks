@@ -1,7 +1,7 @@
 # Face alignment for PCR students
 
 #### Requisites
-- images_framework
+- images-framework
 - torch
 - pytorch-lightning
 - torchvision
