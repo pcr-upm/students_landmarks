@@ -3,13 +3,42 @@
 __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
+import math
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision.models as models
 import pytorch_lightning as pl
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from src.dataloader import Backbone
 
+
+class WingLoss(nn.Module):
+    """
+    Wing Loss (CVPR 2018)
+    Feng et al., "Wing Loss for Robust Facial Landmark Localisation with Convolutional Neural Networks"
+    """
+    def __init__(self, omega=10.0, epsilon=2.0, reduction='mean'):
+        super().__init__()
+        self.omega = omega
+        self.epsilon = epsilon
+        self.reduction = reduction
+        self.constant = omega - omega * math.log(1 + omega / epsilon)
+
+    def forward(self, pred, gt):
+        w, e = self.omega, self.epsilon
+        abs_diff = torch.abs(gt - pred)
+        loss = w * torch.log(1 + abs_diff / e) * (abs_diff < w)
+        loss = loss + (abs_diff - self.constant) * (abs_diff >= w)
+        # Reduce loss
+        loss = loss.sum(-1)
+        if self.reduction == 'mean':
+            return torch.mean(loss)
+        elif self.reduction == 'sum':
+            return torch.sum(loss)
+        else:
+            raise NotImplementedError(f"Reduction type '{self.reduction}' is not implemented.")
 
 class LitEncoder(pl.LightningModule):
     """
@@ -70,7 +99,7 @@ class LitEncoder(pl.LightningModule):
         targets = batch['landmarks'].float()
         outputs = self.model(inputs)
         outputs = outputs.view(-1, self.num_classes, 2)
-        loss = nn.L1Loss()(outputs, targets)
+        loss = WingLoss()(outputs, targets)
         return loss
 
     def training_step(self, batch, batch_idx):

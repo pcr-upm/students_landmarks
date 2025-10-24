@@ -3,6 +3,7 @@
 __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
@@ -11,6 +12,44 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from src.dataloader import Backbone
 
+
+class AdaptiveWingLoss(nn.Module):
+    """
+    Adaptive Wing Loss (ICCV 2019)
+    Wang et al., "Adaptive Wing Loss for Robust Face Alignment via Heatmap Regression"
+    """
+    def __init__(self, omega=14.0, theta=0.5, epsilon=1.0, alpha=2.1, map_weight=10.0, map_threshold=0.2, reduction='mean'):
+        super().__init__()
+        self.omega = omega
+        self.theta = theta
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.map_weight = map_weight
+        self.map_threshold = map_threshold
+        self.reduction = reduction
+
+    def forward(self, pred, gt):
+        w, t, e, a = self.omega, self.theta, self.epsilon, self.alpha
+        abs_diff = torch.abs(gt - pred)
+        a_minus_gt = a - gt
+        t_div_e = t / e
+        cont_constant = w * (1 / (1 + t_div_e ** a_minus_gt)) * a_minus_gt * (t_div_e ** (a_minus_gt - 1)) * (1 / e)
+        smooth_constant = (t * cont_constant - w * torch.log(1 + t_div_e ** a_minus_gt))
+        loss = w * torch.log(1 + (abs_diff / e) ** a_minus_gt) * (abs_diff < t)
+        loss = loss + (cont_constant * abs_diff - smooth_constant) * (abs_diff >= t)
+        # Optional weighting: emphasize regions near landmarks
+        if self.map_weight > 0:
+            dilated_heatmaps = F.max_pool2d(gt, kernel_size=3, stride=1, padding=1)
+            weight_map = (dilated_heatmaps >= self.map_threshold).float()
+            loss = loss * (self.map_weight * weight_map + 1)
+        # Reduce loss
+        loss = loss.mean(dim=(-1, -2))
+        if self.reduction == 'mean':
+            return torch.mean(loss)
+        elif self.reduction == 'sum':
+            return torch.sum(loss)
+        else:
+            raise NotImplementedError(f"Reduction type '{self.reduction}' is not implemented.")
 
 class LitUNet(pl.LightningModule):
     """
@@ -37,9 +76,7 @@ class LitUNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['heatmaps'].float()
         outputs = self.model(inputs)
-        pred_log_softmax = F.log_softmax(outputs.view(outputs.size(0), outputs.size(1), -1), dim=-1)
-        target_softmax = F.softmax(targets.view(targets.size(0), targets.size(1), -1), dim=-1)
-        loss = F.kl_div(pred_log_softmax, target_softmax, reduction='batchmean')
+        loss = AdaptiveWingLoss()(outputs, targets)
         # import cv2
         # import torch
         # import numpy as np
