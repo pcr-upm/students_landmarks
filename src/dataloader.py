@@ -57,7 +57,7 @@ class MyDataset(Dataset):
                     self.img_indices.append(img_idx)
                     self.obj_indices.append(obj_idx)
                     self.filepaths.append(img_ann.filename)
-                    self.bboxes.append(np.array(obj_ann.bb, dtype=np.float64))
+                    self.bboxes.append(np.array(obj_ann.bb, dtype=np.float32))
                     # Sort landmarks using self.indices order
                     if mode != Mode.TEST:
                         indices, landmarks = zip(*[(lnd.label, lnd.pos) for lnds in [landmarks for lps in obj_ann.landmarks.values() for landmarks in lps.values()] for lnd in lnds])

@@ -4,6 +4,7 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import torch.nn as nn
+import torch.nn.functional as F
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
 from torch.optim import AdamW
@@ -17,11 +18,8 @@ class LitUNet(pl.LightningModule):
     """
     def __init__(self, num_classes, backbone, epochs=100, batch_size=16, transfer=True, tune_fc_only=True):
         super().__init__()
-        self.num_classes = num_classes
         self.epochs = epochs
         self.batch_size = batch_size
-        # Loss criterion
-        self.loss_fn = nn.MSELoss()
         # Using a pretrained UNet architecture
         self.model = smp.Unet(encoder_name='mit_b2' if backbone in [Backbone.VIT] else backbone.value, encoder_weights='imagenet' if transfer else None, decoder_channels=list([256, 128, 64, 64, 64]), in_channels=3)
         # Replace final layer
@@ -39,7 +37,9 @@ class LitUNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['heatmaps'].float()
         outputs = self.model(inputs)
-        loss = self.loss_fn(outputs, targets)
+        pred_log_softmax = F.log_softmax(outputs.view(outputs.size(0), outputs.size(1), -1), dim=-1)
+        target_softmax = F.softmax(targets.view(targets.size(0), targets.size(1), -1), dim=-1)
+        loss = F.kl_div(pred_log_softmax, target_softmax, reduction='batchmean')
         # import cv2
         # import torch
         # import numpy as np

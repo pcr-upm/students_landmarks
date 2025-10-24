@@ -52,12 +52,12 @@ class CropBbox:
         # cv2.rectangle(aux, (int(bbox_enlarged[0]), int(bbox_enlarged[1])), (int(bbox_enlarged[2]), int(bbox_enlarged[3])), (255, 255, 0))
         # cv2.imshow('aa', cv2.cvtColor(aux, cv2.COLOR_BGR2RGB))
         # Project image
-        T = np.zeros((2, 3), dtype=float)
+        T = np.zeros((2, 3), dtype=np.float32)
         T[0, 0], T[0, 1], T[0, 2] = 1, 0, -bbox_enlarged[0]
         T[1, 0], T[1, 1], T[1, 2] = 0, 1, -bbox_enlarged[1]
         bbox_width = bbox_enlarged[2]-bbox_enlarged[0]
         bbox_height = bbox_enlarged[3]-bbox_enlarged[1]
-        S = np.matrix([[self.width/bbox_width, 0, 0], [0, self.height/bbox_height, 0]], dtype=float)
+        S = np.matrix([[self.width/bbox_width, 0, 0], [0, self.height/bbox_height, 0]], dtype=np.float32)
         face_translated = cv2.warpAffine(sample['img'], T, (int(round(bbox_width)), int(round(bbox_height))))
         sample['img'] = cv2.warpAffine(face_translated, S, (self.width, self.height))
         # Project landmarks
@@ -87,14 +87,17 @@ class Heatmaps:
     def __call__(self, sample):
         # Heatmap generation
         _, height, width = sample['img'].shape
-        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), height, width), dtype=float)
+        sample['heatmaps'] = np.zeros(shape=(len(sample['landmarks']), height, width), dtype=np.float32)
         for idx, lnd in enumerate(sample['landmarks']):
             (x, y) = np.array(lnd, dtype=int)[0]
-            x = 0 if x < 0 else width-1 if x > width-1 else x
-            y = 0 if y < 0 else height-1 if y > height-1 else y
-            heatmap = np.zeros(shape=(height, width), dtype=float)
+            x = np.clip(x, 0, width-1)
+            y = np.clip(y, 0, height-1)
+            heatmap = np.zeros(shape=(height, width), dtype=np.float32)
             heatmap[y, x] = 1.0
             # Apply gaussian filter to the ground-truth
             heatmap = gaussian_filter(heatmap, sigma=self.sigma)
-            sample['heatmaps'][idx] = heatmap
+            # Normalize heatmaps between [0,1]
+            if heatmap.max() > 0:
+                heatmap /= heatmap.max()
+            sample['heatmaps'][idx] = torch.from_numpy(heatmap).float()
         return sample

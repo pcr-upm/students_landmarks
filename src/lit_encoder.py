@@ -37,8 +37,6 @@ class LitEncoder(pl.LightningModule):
         self.num_classes = num_classes
         self.epochs = epochs
         self.batch_size = batch_size
-        # Loss criterion
-        self.loss_fn = nn.L1Loss()
         # Encoder architecture
         self.model = self.encoders[backbone](weights='IMAGENET1K_V1' if transfer else None)
         # Replace final layer
@@ -72,7 +70,7 @@ class LitEncoder(pl.LightningModule):
         targets = batch['landmarks'].float()
         outputs = self.model(inputs)
         outputs = outputs.view(-1, self.num_classes, 2)
-        loss = self.loss_fn(outputs, targets)
+        loss = nn.L1Loss()(outputs, targets)
         return loss
 
     def training_step(self, batch, batch_idx):
