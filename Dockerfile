@@ -34,5 +34,4 @@ ENV PATH /home/username/conda/envs/students/bin:/home/username/conda/bin:$PATH
 # Make RUN commands use the new environment (source activate students)
 SHELL ["conda", "run", "-n", "students", "/bin/bash", "-c"]
 # Install dependencies
-RUN pip install images-framework tqdm scikit-learn
-RUN pip install torch pytorch-lightning torchvision torchinfo tensorboard segmentation-models-pytorch
+RUN pip install images-framework tqdm scikit-learn torch pytorch-lightning torchvision torchinfo tensorboard segmentation-models-pytorch

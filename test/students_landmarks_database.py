@@ -92,10 +92,10 @@ def main():
     if show_viewer:
         viewer = Viewer('images_viewer')
     if save_file:
-        ofs = open(output_path+'results.txt', 'w', encoding='utf-8')
+        ofs = open(output_path+'/results.txt', 'w', encoding='utf-8')
     if save_image:
         viewer = Viewer('images_save')
-        dirname = output_path+'images/'
+        dirname = os.path.join(output_path, 'images/')
         Path(dirname).mkdir(parents=True, exist_ok=True)
     for i in tqdm(range(len(anns)), file=sys.stdout):
         pred = copy.deepcopy(anns[i])

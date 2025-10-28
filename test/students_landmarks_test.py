@@ -140,7 +140,7 @@ def main():
     spec = importlib.util.find_spec('images_framework')
     output_path = os.path.join('images_framework' if spec is None else os.path.dirname(spec.origin), 'output')
     viewer = Viewer('students_landmarks_test')
-    dirname = output_path+'images/'
+    dirname = os.path.join(output_path, 'images/')
     Path(dirname).mkdir(parents=True, exist_ok=True)
 
     # Process frame and show results
