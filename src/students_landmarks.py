@@ -97,7 +97,7 @@ class StudentsLandmarks(Alignment):
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/', default_hp_metric=False), PCRLogger()]
         early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
         ckpt_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
-        trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, logger=loggers, callbacks=[early_callback, ckpt_callback])
+        trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False, max_epochs=self.epochs, precision=16, deterministic=True, gradient_clip_val=None, logger=loggers, callbacks=[early_callback, ckpt_callback])
         trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
