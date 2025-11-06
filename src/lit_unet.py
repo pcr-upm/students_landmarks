@@ -60,7 +60,7 @@ class LitUNet(pl.LightningModule):
         self.epochs = epochs
         self.batch_size = batch_size
         # Using a pretrained UNet architecture
-        self.model = smp.Unet(encoder_name='mit_b2' if backbone in [Backbone.VIT] else backbone.value, encoder_weights='imagenet' if transfer else None, encoder_depth=4, decoder_channels=list([512, 256, 128, 64]), in_channels=3)
+        self.model = smp.Unet(encoder_name='mit_b2' if backbone in [Backbone.VIT] else backbone.value, encoder_weights='imagenet' if transfer else None, encoder_depth=5, decoder_channels=list([256, 128, 96, 80, 64]), in_channels=3)
         # Replace final layer
         self.model.segmentation_head = nn.Conv2d(64, num_classes, kernel_size=(1, 1))
 
@@ -68,11 +68,7 @@ class LitUNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        opt = AdamW([
-            {'params': self.model.encoder.parameters(), 'lr': 1e-5},
-            {'params': self.model.decoder.parameters(), 'lr': 1e-4},
-            {'params': self.model.segmentation_head.parameters(), 'lr': 1e-4}
-        ], weight_decay=0.05)
+        opt = AdamW(self.parameters(), lr=3e-4 , weight_decay=0.05)
         scheduler = CosineAnnealingLR(opt, T_max=self.epochs)
         return {'optimizer': opt, 'lr_scheduler': scheduler}
 
