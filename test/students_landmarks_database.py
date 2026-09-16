@@ -87,14 +87,14 @@ def main():
     composite.parse_options(unknown)
     anns = load_annotations(anns_file)
     composite.load(Modes.TEST)
-    spec = importlib.util.find_spec('images_framework')
-    output_path = os.path.join('images_framework' if spec is None else os.path.dirname(spec.origin), 'output')
+    spec = importlib.util.find_spec('pcr_framework')
+    output_path = os.path.join('pcr_framework' if spec is None else os.path.dirname(spec.origin), 'output')
     if show_viewer:
-        viewer = Viewer('images_viewer')
+        viewer = Viewer('students_landmarks_database')
     if save_file:
         ofs = open(output_path+'/results.txt', 'w', encoding='utf-8')
     if save_image:
-        viewer = Viewer('images_save')
+        viewer = Viewer('students_landmarks_database')
         dirname = os.path.join(output_path, 'images/')
         Path(dirname).mkdir(parents=True, exist_ok=True)
     for i in tqdm(range(len(anns)), file=sys.stdout):
