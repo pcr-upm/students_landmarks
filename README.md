@@ -1,15 +1,7 @@
 # Face alignment for PCR students
 
 #### Requisites
-- images-framework
-- torch
-- pytorch-lightning
-- torchvision
-- torch-summary
-- tensorboard
-- segmentation-models-pytorch
-- tqdm
-- scikit-learn
+The required dependencies are installed in the [`Dockerfile`](./Dockerfile#L33).
 
 #### Usage
 ```

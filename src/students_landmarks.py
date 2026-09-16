@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__f
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
-from images_framework.src.alignment import Alignment
+from pcr_framework.src.alignment import Alignment
 from src.pcrlogger import PCRLogger
 from src.dataloader import Mode, Regressor, Backbone, MyDataset
 os.environ['PYTHONHASHSEED'] = '0'
@@ -102,7 +102,7 @@ class StudentsLandmarks(Alignment):
 
     def load(self, mode):
         import torchinfo
-        from images_framework.src.constants import Modes
+        from pcr_framework.src.constants import Modes
         from src.lit_encoder import LitEncoder
         from src.lit_unet import LitUNet
         # Set up the neural network to train
@@ -124,9 +124,9 @@ class StudentsLandmarks(Alignment):
 
     def process(self, ann, pred):
         import cv2
-        from images_framework.src.datasets import Database
-        from images_framework.src.annotations import GenericLandmark
-        from images_framework.regression.alignment.landmarks import lps
+        from pcr_framework.src.datasets import Database
+        from pcr_framework.src.annotations import GenericLandmark
+        from pcr_framework.regression.alignment.landmarks import lps
         datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
         parts = Database.__subclasses__()[idx[0]]().get_landmarks()

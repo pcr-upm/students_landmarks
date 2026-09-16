@@ -8,9 +8,9 @@ import sys
 sys.path.append(os.getcwd())
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-from images_framework.src.constants import Modes
-from images_framework.src.datasets import Database
-from images_framework.src.composite import Composite
+from pcr_framework.src.constants import Modes
+from pcr_framework.src.datasets import Database
+from pcr_framework.src.composite import Composite
 from src.students_landmarks import StudentsLandmarks
 
 
