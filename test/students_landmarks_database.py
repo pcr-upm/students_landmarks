@@ -13,7 +13,7 @@ import importlib.util
 from tqdm import tqdm
 from pathlib import Path
 from pcr_framework.src.constants import Modes
-from pcr_framework.src.datasets import Database
+from pcr_framework.src.datasets import Database, Sources
 from pcr_framework.src.composite import Composite
 from pcr_framework.src.viewer import Viewer
 from src.students_landmarks import StudentsLandmarks
@@ -43,32 +43,30 @@ def parse_options():
 
 def load_annotations(anns_file):
     """
-    Load ground truth annotations according to each database.
+    Load ground-truth annotations from the specified database source.
     """
-    print('Open annotations file: ' + str(anns_file))
+    print(f"Loading dataset from {Sources.TXT}: {anns_file}")
     if os.path.isfile(anns_file):
-        pos = anns_file.rfind('/') + 1
-        path = anns_file[:pos]
-        file = anns_file[pos:]
-        db = file[:file.find('_ann')]
-        datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
-        with open(anns_file, 'r', encoding='utf-8') as ifs:
-            lines = ifs.readlines()
-            anns = []
-            for i in tqdm(range(len(lines)), file=sys.stdout):
-                parts = lines[i].strip().split(';')
-                if parts[0] == '@':
-                    db = parts[1]
-                if parts[0] == '#' or parts[0] == '@':
-                    continue
-                idx = next((idx for idx, subset in enumerate(datasets) if db in subset), None)
-                if idx is None:
-                    raise ValueError('Database does not exist')
-                seq = Database.__subclasses__()[idx]().load_filename(path, db, lines[i])
-                if len(seq.images) == 0:
-                    continue
-                anns.append(seq)
+        ref_path = Path(ref)
+        path = ref_path.parent
+        file = ref_path.name
+        ref = file[:file.find('_ann')]
+        ifs = ref_path.open('r', encoding='utf-8-sig')
+        ds = ifs.readlines()
         ifs.close()
+        # Check if 'anns' exists in datasets
+        datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
+        idx = next((idx for idx, subset in enumerate(datasets) if ref in subset), None)
+        if idx is None:
+            raise ValueError(f'Database is not implemented: {ref}')
+        db = Database.__subclasses__()[idx]()
+        # Load all lines (one image per line)
+        anns = []
+        for line in tqdm(ds, file=sys.stdout):
+            seq = db.load_line(Sources.TXT, ref, path, line)
+            if len(seq.images) == 0:
+                continue
+            anns.append(seq)
     else:
         raise ValueError('Annotations file does not exist')
     return anns
