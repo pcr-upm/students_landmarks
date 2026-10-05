@@ -28,8 +28,11 @@ class AdaptiveWingLoss(nn.Module):
         self.map_threshold = map_threshold
         self.reduction = reduction
 
-    def forward(self, pred, gt):
+    def forward(self, pred, gt, mask):
         w, t, e, a = self.omega, self.theta, self.epsilon, self.alpha
+        mask = mask.unsqueeze(-1).unsqueeze(-1)  # (batch, num_landmarks, 1, 1)
+        gt = gt * mask
+        pred = pred * mask
         abs_diff = torch.abs(gt - pred)
         a_minus_gt = a - gt
         t_div_e = t / e
@@ -43,11 +46,13 @@ class AdaptiveWingLoss(nn.Module):
             weight_map = (dilated_heatmaps >= self.map_threshold).float()
             loss = loss * (self.map_weight * weight_map + 1)
         # Reduce loss
+        loss = loss * mask
         loss = loss.mean(dim=(-1, -2))
+        valid_fraction = torch.clamp(mask.sum(), min=1e-8) / mask.numel()
         if self.reduction == 'mean':
-            return torch.mean(loss)
+            return torch.mean(loss) / valid_fraction
         elif self.reduction == 'sum':
-            return torch.sum(loss)
+            return torch.sum(loss) / valid_fraction
         else:
             raise NotImplementedError(f"Reduction type '{self.reduction}' is not implemented.")
 
@@ -75,8 +80,9 @@ class LitUNet(pl.LightningModule):
     def _step(self, batch):
         inputs = batch['img'].float()
         targets = batch['heatmaps'].float()
+        mask = batch['mask'].float()
         outputs = self.model(inputs)
-        loss = AdaptiveWingLoss()(outputs, targets)
+        loss = AdaptiveWingLoss()(outputs, targets, mask)
         # import cv2
         # import torch
         # import numpy as np

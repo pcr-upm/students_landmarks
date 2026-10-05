@@ -50,7 +50,7 @@ class MyDataset(Dataset):
         self.height = height
         self.mode = mode
         # Set data information
-        self.img_indices, self.obj_indices, self.filepaths, self.bboxes, self.landmarks = [], [], [], [], []
+        self.img_indices, self.obj_indices, self.filepaths, self.bboxes, self.landmarks, self.masks = [], [], [], [], [], []
         for ann in anns:
             for img_idx, img_ann in enumerate(ann.images):
                 for obj_idx, obj_ann in enumerate(img_ann.objects):
@@ -61,11 +61,17 @@ class MyDataset(Dataset):
                     # Sort landmarks using self.indices order
                     if mode != Mode.TEST:
                         indices, landmarks = zip(*[(lnd.label, lnd.pos) for lnds in [landmarks for lps in obj_ann.landmarks.values() for landmarks in lps.values()] for lnd in lnds])
-                        order = [indices.index(idx) for idx in self.indices]
-                        landmarks = np.array(landmarks)[order]
+                        lnds = np.zeros((len(self.indices), 2), dtype=np.float32)
+                        mask = np.zeros(len(self.indices), dtype=np.float32)
+                        for i, idx in enumerate(self.indices):
+                            if idx in indices:
+                                lnds[i] = landmarks[indices.index(idx)]
+                                mask[i] = 1.0
+                        self.landmarks.append(lnds)
+                        self.masks.append(mask)
                     else:
-                        landmarks = np.array([])
-                    self.landmarks.append(landmarks)
+                        self.landmarks.append(np.array([]))
+                        self.masks.append(np.array([]))
 
     def __len__(self):
         # Returns the length of the dataset
@@ -76,7 +82,7 @@ class MyDataset(Dataset):
         # This is memory efficient because all the images are not stored in the memory at once but read as required
         image = cv2.imread(self.filepaths[idx], cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'landmarks': self.landmarks[idx]}
+        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'landmarks': self.landmarks[idx], 'mask': self.masks[idx]}
         # Composes several transforms together
         if self.mode is Mode.TRAIN:
             ops = [Illumination((0.1, 0.2, 0.2)), CropBbox(self.width, self.height, 0.3), ImgPermute()]

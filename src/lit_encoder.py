@@ -26,17 +26,22 @@ class WingLoss(nn.Module):
         self.reduction = reduction
         self.constant = omega - omega * math.log(1 + omega / epsilon)
 
-    def forward(self, pred, gt):
+    def forward(self, pred, gt, mask):
         w, e = self.omega, self.epsilon
+        mask = mask.unsqueeze(-1)  # (batch, num_landmarks, 1)
+        gt = gt * mask
+        pred = pred * mask
         abs_diff = torch.abs(gt - pred)
         loss = w * torch.log(1 + abs_diff / e) * (abs_diff < w)
         loss = loss + (abs_diff - self.constant) * (abs_diff >= w)
         # Reduce loss
+        loss = loss * mask
         loss = loss.sum(-1)
+        valid_fraction = torch.clamp(mask.sum(), min=1e-8) / mask.numel()
         if self.reduction == 'mean':
-            return torch.mean(loss)
+            return torch.mean(loss) / valid_fraction
         elif self.reduction == 'sum':
-            return torch.sum(loss)
+            return torch.sum(loss) / valid_fraction
         else:
             raise NotImplementedError(f"Reduction type '{self.reduction}' is not implemented.")
 
@@ -97,9 +102,10 @@ class LitEncoder(pl.LightningModule):
     def _step(self, batch):
         inputs = batch['img'].float()
         targets = batch['landmarks'].float()
+        mask = batch['mask'].float()
         outputs = self.model(inputs)
         outputs = outputs.view(-1, self.num_classes, 2)
-        loss = WingLoss()(outputs, targets)
+        loss = WingLoss()(outputs, targets, mask)
         return loss
 
     def training_step(self, batch, batch_idx):
