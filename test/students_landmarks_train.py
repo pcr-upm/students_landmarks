@@ -5,7 +5,7 @@ __email__ = 'roberto.valle@upm.es'
 
 import os
 import sys
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from pcr_framework.src.constants import Modes
