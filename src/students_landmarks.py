@@ -127,7 +127,7 @@ class StudentsLandmarks(Alignment):
     def process(self, ann, pred):
         import cv2
         from pcr_framework.src.datasets import Database
-        from pcr_framework.src.annotations import GenericLandmark
+        from pcr_framework.src.annotations import PersonObject, GenericLandmark
         from pcr_framework.regression.alignment.landmarks import lps
         datasets = [subclass().get_names() for subclass in Database.__subclasses__()]
         idx = [datasets.index(subset) for subset in datasets if self.database in subset]
@@ -155,6 +155,8 @@ class StudentsLandmarks(Alignment):
                     #     cv2.waitKey(0)
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
+                if not isinstance(obj_pred, PersonObject):
+                    continue
                 bbox_enlarged = batch['bbox_enlarged'].squeeze().cpu().numpy()
                 bbox_width = bbox_enlarged[2] - bbox_enlarged[0]
                 bbox_height = bbox_enlarged[3] - bbox_enlarged[1]
